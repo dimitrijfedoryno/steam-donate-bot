@@ -1,0 +1,13 @@
+# Ignorovat závislosti (jsou moc velké)
+node_modules/
+
+# Ignorovat citlivé údaje (hesla a tokeny)
+.env
+
+# Ignorovat logy a dočasná data (pokud nechceš sdílet historii tradů)
+logs/
+*.log
+alert_data.json
+
+# Ignorovat systémové soubory
+.DS_Store
