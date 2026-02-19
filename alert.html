@@ -2,131 +2,125 @@
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
-    <title>Steam Donation Alert</title>
     <style>
-        body { 
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
-            overflow: hidden; 
-            background-color: transparent; /* Důležité pro OBS */
+        /* Reset okrajů a nastavení plné výšky */
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: transparent;
+        }
+
+        /* Kontejner, který vycentruje alert nebo ho roztáhne */
+        #container {
+            display: flex;
+            justify-content: center; /* Vycentrování horizontálně */
+            align-items: flex-start; /* Zarovnání k hornímu okraji (lze změnit na center) */
+            width: 100%;
+            height: 100%;
+            padding-top: 50px; /* Mezera od horního okraje OBS zdroje */
         }
 
         #alert-box {
-            position: absolute;
-            top: 50px;
-            left: 50px;
-            width: 450px;
-            background: linear-gradient(90deg, rgba(20, 20, 20, 0.95) 0%, rgba(40, 40, 40, 0.8) 100%);
-            border-left: 8px solid #a4d007; /* CS2 zelená */
+            /* Šířka se přizpůsobí obsahu, max 90% šířky zdroje */
+            width: 90%; 
+            max-width: 600px; 
+            background: linear-gradient(135deg, rgba(20, 20, 20, 0.95) 0%, rgba(45, 45, 45, 0.9) 100%);
+            border-left: 10px solid #a4d007;
             color: white;
-            padding: 25px;
-            border-radius: 0 15px 15px 0;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            
-            /* Animace schování */
-            transform: translateX(-600px);
-            transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+            padding: 30px;
+            border-radius: 0 20px 20px 0;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.6);
+            font-family: 'Arial Black', sans-serif;
+
+            /* Animace (vjezd shora) */
+            opacity: 0;
+            transform: translateY(-200px);
+            transition: all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
         #alert-box.show {
-            transform: translateX(0);
+            opacity: 1;
+            transform: translateY(0);
         }
 
-        .title { 
+        .label { 
             color: #a4d007; 
+            font-size: 1.2rem; 
             text-transform: uppercase; 
-            font-weight: 900; 
-            letter-spacing: 2px;
-            font-size: 0.9em;
-            margin-bottom: 5px;
+            letter-spacing: 3px;
+            margin-bottom: 10px;
         }
 
-        .user-name {
-            font-size: 1.8em;
-            font-weight: bold;
-            margin-bottom: 10px;
+        .user-name { 
+            font-size: 3rem; 
+            margin: 5px 0;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
 
-        .amount { 
-            font-size: 2.2em; 
-            color: #ffffff; 
-            font-weight: 900;
+        .total-value { 
+            font-size: 4rem; 
+            color: #ffcc00; 
+            text-shadow: 2px 2px 10px rgba(0,0,0,0.5);
         }
 
-        .top-item { 
-            margin-top: 15px;
-            padding-top: 10px;
+        .sub-text { 
+            font-size: 1.4rem; 
+            color: #bbb; 
+            margin-top: 15px; 
+            font-family: 'Segoe UI', sans-serif;
             border-top: 1px solid rgba(255,255,255,0.1);
-            font-size: 0.95em; 
-            color: #ccc; 
-        }
-
-        .item-name {
-            color: #eb4b4b; /* Barva pro dražší itemy */
-            font-weight: bold;
+            padding-top: 10px;
         }
     </style>
 </head>
 <body>
 
-<div id="alert-box">
-    <div class="title">Nová Steam Nabídka</div>
-    <div id="user" class="user-name">Načítání...</div>
-    <div class="amount"><span id="total">0.00</span> USD</div>
-    <div class="top-item">Nejdražší kousek:<br><span id="item" class="item-name">---</span></div>
+<div id="container">
+    <div id="alert-box">
+        <div class="label">Nová Nabídka</div>
+        <div id="user" class="user-name">Uživatel</div>
+        <div class="total-value">$<span id="total">0.00</span></div>
+        <div class="sub-text">Nejdražší: <span id="item" style="color:#fff">---</span></div>
+    </div>
 </div>
 
 <script>
-    let lastTimestamp = 0;
-    // Tady nastavíme cestu k souboru - pokud máš alert.html v hlavní složce
-    // a JSON v logs/, pak je cesta 'logs/alert_data.json'
+    let lastProcessedTimestamp = 0;
     const JSON_PATH = 'logs/alert_data.json'; 
 
     async function checkAlert() {
         try {
-            // Přidáváme ?t=timestamp, aby prohlížeč pokaždé stáhl čerstvý soubor
             const response = await fetch(JSON_PATH + '?t=' + Date.now());
-            if (!response.ok) throw new Error('Soubor nenalezen');
-            
+            if (!response.ok) return;
             const data = await response.json();
 
-            // Kontrola, jestli jde o nový dar
-            if (data.timestamp > lastTimestamp) {
-                // Pokud je to úplně první načtení po zapnutí stránky, 
-                // jen uložíme čas a neukazujeme alert (aby nevyskočil starý dar)
-                if (lastTimestamp === 0) {
-                    lastTimestamp = data.timestamp;
-                    return;
+            if (data.timestamp > lastProcessedTimestamp) {
+                if (lastProcessedTimestamp !== 0) {
+                    displayAlert(data);
                 }
-
-                lastTimestamp = data.timestamp;
-                showAlert(data);
+                lastProcessedTimestamp = data.timestamp;
             }
-        } catch (e) {
-            console.error("Chyba při načítání JSONu:", e);
-        }
+        } catch (e) {}
     }
 
-    function showAlert(data) {
+    function displayAlert(data) {
         document.getElementById('user').innerText = data.username;
         document.getElementById('total').innerText = data.total;
-        document.getElementById('item').innerText = data.topItem + " ($" + data.topItemPrice + ")";
+        document.getElementById('item').innerText = data.topItem;
         
         const box = document.getElementById('alert-box');
         box.classList.add('show');
         
-        // Zvukový efekt (pokud máš v logs/ složce sound.mp3)
-        // new Audio('logs/alert.mp3').play().catch(e => console.log('Audio disabled'));
-
-        // Po 10 sekundách alert schováme
         setTimeout(() => {
             box.classList.remove('show');
-        }, 10000);
+        }, 8000);
     }
 
-    // Interval kontroly (1000ms = 1 sekunda)
     setInterval(checkAlert, 1000);
 </script>
 </body>
