@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <style>
-        /* Reset okrajů a nastavení plné výšky */
         html, body {
             margin: 0;
             padding: 0;
@@ -13,18 +12,16 @@
             background-color: transparent;
         }
 
-        /* Kontejner, který vycentruje alert nebo ho roztáhne */
         #container {
             display: flex;
-            justify-content: center; /* Vycentrování horizontálně */
-            align-items: flex-start; /* Zarovnání k hornímu okraji (lze změnit na center) */
+            justify-content: center; 
+            align-items: flex-start; 
             width: 100%;
             height: 100%;
-            padding-top: 50px; /* Mezera od horního okraje OBS zdroje */
+            padding-top: 50px; 
         }
 
         #alert-box {
-            /* Šířka se přizpůsobí obsahu, max 90% šířky zdroje */
             width: 90%; 
             max-width: 600px; 
             background: linear-gradient(135deg, rgba(20, 20, 20, 0.95) 0%, rgba(45, 45, 45, 0.9) 100%);
@@ -34,8 +31,6 @@
             border-radius: 0 20px 20px 0;
             box-shadow: 0 15px 40px rgba(0,0,0,0.6);
             font-family: 'Arial Black', sans-serif;
-
-            /* Animace (vjezd shora) */
             opacity: 0;
             transform: translateY(-200px);
             transition: all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -46,39 +41,15 @@
             transform: translateY(0);
         }
 
-        .label { 
-            color: #a4d007; 
-            font-size: 1.2rem; 
-            text-transform: uppercase; 
-            letter-spacing: 3px;
-            margin-bottom: 10px;
-        }
-
-        .user-name { 
-            font-size: 3rem; 
-            margin: 5px 0;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .total-value { 
-            font-size: 4rem; 
-            color: #ffcc00; 
-            text-shadow: 2px 2px 10px rgba(0,0,0,0.5);
-        }
-
-        .sub-text { 
-            font-size: 1.4rem; 
-            color: #bbb; 
-            margin-top: 15px; 
-            font-family: 'Segoe UI', sans-serif;
-            border-top: 1px solid rgba(255,255,255,0.1);
-            padding-top: 10px;
-        }
+        .label { color: #a4d007; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 3px; margin-bottom: 10px; }
+        .user-name { font-size: 3rem; margin: 5px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .total-value { font-size: 4rem; color: #ffcc00; text-shadow: 2px 2px 10px rgba(0,0,0,0.5); }
+        .sub-text { font-size: 1.4rem; color: #bbb; margin-top: 15px; font-family: 'Segoe UI', sans-serif; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px; }
     </style>
 </head>
-<body>
+<body onclick="unlockAudio()">
+
+<audio id="trade-sound" src="sounds/trade.mp3" preload="auto"></audio>
 
 <div id="container">
     <div id="alert-box">
@@ -90,22 +61,37 @@
 </div>
 
 <script>
-    let lastProcessedTimestamp = 0;
+    let currentTimestamp = null;
     const JSON_PATH = 'logs/alert_data.json'; 
+
+    function unlockAudio() {
+        const sound = document.getElementById('trade-sound');
+        sound.play().then(() => {
+            sound.pause();
+            sound.currentTime = 0;
+        }).catch(e => console.log("Interakce nutná"));
+    }
 
     async function checkAlert() {
         try {
-            const response = await fetch(JSON_PATH + '?t=' + Date.now());
+            const response = await fetch(`${JSON_PATH}?t=${Date.now()}`);
             if (!response.ok) return;
             const data = await response.json();
 
-            if (data.timestamp > lastProcessedTimestamp) {
-                if (lastProcessedTimestamp !== 0) {
-                    displayAlert(data);
-                }
-                lastProcessedTimestamp = data.timestamp;
+            // První spuštění - jen si zapamatujeme výchozí stav
+            if (currentTimestamp === null) {
+                currentTimestamp = data.timestamp;
+                return;
             }
-        } catch (e) {}
+
+            // Pokud se timestamp změnil (je jiný, ne jen větší)
+            if (data.timestamp !== currentTimestamp) {
+                displayAlert(data);
+                currentTimestamp = data.timestamp;
+            }
+        } catch (e) {
+            console.error("Chyba:", e);
+        }
     }
 
     function displayAlert(data) {
@@ -113,6 +99,10 @@
         document.getElementById('total').innerText = data.total;
         document.getElementById('item').innerText = data.topItem;
         
+        const sound = document.getElementById('trade-sound');
+        sound.currentTime = 0;
+        sound.play().catch(error => console.warn("Zvuk blokován, klikni na Interakci v OBS."));
+
         const box = document.getElementById('alert-box');
         box.classList.add('show');
         

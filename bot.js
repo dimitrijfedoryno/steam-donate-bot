@@ -118,6 +118,7 @@ async function simulateFakeOffer() {
         itemsToGive: [],
         itemsToReceive: [
             { market_hash_name: 'Clutch Case', appid: 730 },
+            { market_hash_name: 'Gamma Case', appid: 730 },
             { market_hash_name: 'AK-47 | Slate (Field-Tested)', appid: 730 }
         ],
         accept: (cb) => cb(null)
