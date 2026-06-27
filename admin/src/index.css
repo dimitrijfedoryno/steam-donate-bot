@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #444 transparent;
+  }
+  *::-webkit-scrollbar { width: 6px; height: 6px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+  *::-webkit-scrollbar-thumb:hover { background: #666; }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-dark-700 border border-dark-500 rounded-xl transition-all duration-300;
+  }
+  .card:hover {
+    @apply border-dark-400;
+  }
+  .card-glow {
+    @apply border-accent-green/20;
+  }
+  .card-glow:hover {
+    @apply border-accent-green/40 shadow-lg shadow-accent-green/5;
+  }
+  .btn-primary {
+    @apply px-4 py-2 bg-accent-green/20 border border-accent-green/40 text-accent-green rounded-lg
+           font-semibold text-sm transition-all duration-200 hover:bg-accent-green/30 hover:border-accent-green/60
+           active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-danger {
+    @apply px-4 py-2 bg-red-500/20 border border-red-500/40 text-red-400 rounded-lg
+           font-semibold text-sm transition-all duration-200 hover:bg-red-500/30 hover:border-red-500/60
+           active:scale-95;
+  }
+  .input-field {
+    @apply w-full px-3 py-2 bg-dark-600 border border-dark-400 rounded-lg text-white
+           placeholder-gray-500 text-sm focus:outline-none focus:border-accent-green/50 focus:ring-1 focus:ring-accent-green/30
+           transition-all duration-200;
+  }
+  .stat-value {
+    @apply text-2xl font-bold tracking-tight text-white;
+  }
+  .stat-label {
+    @apply text-xs font-medium text-gray-400 uppercase tracking-wider;
+  }
+  .badge {
+    @apply px-2.5 py-0.5 rounded-full text-xs font-semibold;
+  }
+  .badge-green {
+    @apply badge bg-accent-green/15 text-accent-green border border-accent-green/30;
+  }
+  .badge-yellow {
+    @apply badge bg-amber-500/15 text-amber-400 border border-amber-500/30;
+  }
+  .badge-red {
+    @apply badge bg-red-500/15 text-red-400 border border-red-500/30;
+  }
+  .badge-gray {
+    @apply badge bg-dark-500 text-gray-300 border border-dark-400;
+  }
+  .text-muted {
+    @apply text-gray-400;
+  }
+}

@@ -4,3 +4,5 @@ logs/
 *.log
 alert_data.json
 .DS_Store
+admin/node_modules/
+admin/dist/

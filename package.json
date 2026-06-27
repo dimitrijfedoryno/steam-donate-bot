@@ -1,4 +1,10 @@
 {
+  "scripts": {
+    "start": "node src/index.js",
+    "admin": "cd admin && npm run dev",
+    "build:admin": "cd admin && npm run build",
+    "install:admin": "cd admin && npm install"
+  },
   "dependencies": {
     "axios": "^1.13.5",
     "dotenv": "^17.3.1",

@@ -5,11 +5,13 @@ const { startServer } = require('./server');
 const AccountBot = require('./account');
 const { getItemPrice } = require('./prices');
 const { recordOffer } = require('./stats');
+const alertQueue = require('./alertQueue');
 
 const ROOT = path.resolve(__dirname, '..');
 const LOG_DIR = path.join(ROOT, 'logs');
 const LOG_FILE = path.join(LOG_DIR, 'trade_history.log');
 const ALERT_FILE = path.join(LOG_DIR, 'alert_data.json');
+const ALERT_QUEUE_FILE = path.join(LOG_DIR, 'alert_queue.json');
 const TEST_TRIGGER_FILE = path.join(LOG_DIR, '_test_trigger.json');
 
 if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR);
@@ -59,20 +61,21 @@ if (accounts.length === 0) {
 console.log(`\n=== Steam Stream Donate Bot ===`);
 console.log(`Počet účtů: ${accounts.length}`);
 
-// Start HTTP serveru
-const port = parseInt(process.env.STEAM_WEB_PORT || '3000', 10);
-const httpServer = startServer(port, TEST_TRIGGER_FILE);
-
 // Spuštění botů pro každý účet
 const bots = accounts.map((config) => {
     return new AccountBot(config, {
         logFile: LOG_FILE,
         alertFile: ALERT_FILE,
+        alertQueueFile: ALERT_QUEUE_FILE,
         onReady: (bot) => {
             console.log(`[${bot.name}] Připraven přijímat dary`);
         }
     });
 });
+
+// Start HTTP serveru (po vytvoření botů — předává je pro /api/trades)
+const port = parseInt(process.env.STEAM_WEB_PORT || '3000', 10);
+const httpServer = startServer(port, TEST_TRIGGER_FILE, ALERT_QUEUE_FILE, bots);
 
 // Test trigger watcher (test-offer.js nebo /test-offer endpoint)
 function pollTestTrigger() {
@@ -111,6 +114,7 @@ function pollTestTrigger() {
             };
 
             fs.writeFileSync(ALERT_FILE, JSON.stringify(alertData, null, 2), 'utf8');
+            alertQueue.push(ALERT_QUEUE_FILE, alertData);
 
             const timestamp = new Date().toLocaleString('cs-CZ');
             fs.appendFileSync(LOG_FILE, `[${timestamp}] [TEST] DAR OD: ${data.username} | CELKEM: ${totalValue.toFixed(2)} USD\n`, 'utf8');

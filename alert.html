@@ -2,7 +2,7 @@
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
-    <style>
+    <style id="dynamic-styles">
         html, body {
             margin: 0;
             padding: 0;
@@ -45,6 +45,32 @@
         .user-name { font-size: 3rem; margin: 5px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .total-value { font-size: 4rem; color: #ffcc00; text-shadow: 2px 2px 10px rgba(0,0,0,0.5); }
         .sub-text { font-size: 1.4rem; color: #bbb; margin-top: 15px; font-family: 'Segoe UI', sans-serif; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px; }
+
+        #goal-bar-wrap {
+            margin-top: 20px;
+            width: 100%;
+            display: none;
+        }
+        #goal-bar-bg {
+            width: 100%;
+            height: 20px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        #goal-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #a4d007, #ffcc00);
+            border-radius: 10px;
+            transition: width 1s ease-out;
+            width: 0%;
+        }
+        #goal-text {
+            text-align: center;
+            font-size: 0.8rem;
+            color: #aaa;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body onclick="unlockAudio()">
@@ -57,12 +83,66 @@
         <div id="user" class="user-name">Uživatel</div>
         <div class="total-value">$<span id="total">0.00</span></div>
         <div class="sub-text">Nejdražší: <span id="item" style="color:#fff">---</span></div>
+        <div id="goal-bar-wrap">
+            <div id="goal-bar-bg"><div id="goal-fill"></div></div>
+            <div id="goal-text"></div>
+        </div>
     </div>
 </div>
 
 <script>
-    let currentTimestamp = null;
-    const JSON_PATH = 'logs/alert_data.json'; 
+    let playQueue = [];
+    let isPlaying = false;
+    let settings = {};
+
+    async function loadSettings() {
+        try {
+            const res = await fetch('/api/settings');
+            if (res.ok) {
+                settings = await res.json();
+                applySettings();
+            }
+        } catch (e) {
+            console.error('Nepodařilo se načíst nastavení:', e);
+        }
+    }
+
+    function applySettings() {
+        const box = document.getElementById('alert-box');
+        const label = document.querySelector('.label');
+        const totalVal = document.querySelector('.total-value');
+        const style = document.getElementById('dynamic-styles');
+
+        if (settings.alert_primary_color) {
+            box.style.borderLeftColor = settings.alert_primary_color;
+            if (label) label.style.color = settings.alert_primary_color;
+            style.textContent = style.textContent.replace(/--alert-primary--/g, settings.alert_primary_color);
+        }
+        if (settings.alert_secondary_color) {
+            if (totalVal) totalVal.style.color = settings.alert_secondary_color;
+        }
+        if (settings.alert_font_family) {
+            box.style.fontFamily = settings.alert_font_family;
+        }
+        if (settings.alert_sound) {
+            const sound = document.getElementById('trade-sound');
+            sound.src = settings.alert_sound;
+        }
+    }
+
+    function updateGoalBar() {
+        const wrap = document.getElementById('goal-bar-wrap');
+        const fill = document.getElementById('goal-fill');
+        const text = document.getElementById('goal-text');
+        if (settings.donation_goal > 0) {
+            wrap.style.display = 'block';
+            const pct = Math.min(100, (settings.donation_current || 0) / settings.donation_goal * 100);
+            fill.style.width = pct + '%';
+            text.textContent = 'Cíl: $' + settings.donation_goal.toFixed(2) + ' | ' + pct.toFixed(1) + '%';
+        } else {
+            wrap.style.display = 'none';
+        }
+    }
 
     function unlockAudio() {
         const sound = document.getElementById('trade-sound');
@@ -72,46 +152,54 @@
         }).catch(e => console.log("Interakce nutná"));
     }
 
-    async function checkAlert() {
+    async function pollNext() {
         try {
-            const response = await fetch(`${JSON_PATH}?t=${Date.now()}`);
+            const response = await fetch(`/api/alert/next?t=${Date.now()}`);
             if (!response.ok) return;
             const data = await response.json();
-
-            // První spuštění - jen si zapamatujeme výchozí stav
-            if (currentTimestamp === null) {
-                currentTimestamp = data.timestamp;
-                return;
-            }
-
-            // Pokud se timestamp změnil (je jiný, ne jen větší)
-            if (data.timestamp !== currentTimestamp) {
-                displayAlert(data);
-                currentTimestamp = data.timestamp;
+            if (data) {
+                playQueue.push(data);
+                if (!isPlaying) playNext();
             }
         } catch (e) {
             console.error("Chyba:", e);
         }
     }
 
-    function displayAlert(data) {
+    function playNext() {
+        if (playQueue.length === 0) { isPlaying = false; return; }
+        isPlaying = true;
+        const data = playQueue.shift();
+        displayAlert(data, () => {
+            setTimeout(playNext, 500);
+        });
+    }
+
+    function displayAlert(data, onDone) {
         document.getElementById('user').innerText = data.username;
         document.getElementById('total').innerText = data.total;
         document.getElementById('item').innerText = data.topItem;
         
+        const duration = (settings.alert_duration || 8) * 1000;
+
         const sound = document.getElementById('trade-sound');
         sound.currentTime = 0;
         sound.play().catch(error => console.warn("Zvuk blokován, klikni na Interakci v OBS."));
+
+        updateGoalBar();
 
         const box = document.getElementById('alert-box');
         box.classList.add('show');
         
         setTimeout(() => {
             box.classList.remove('show');
-        }, 8000);
+            if (onDone) onDone();
+        }, duration);
     }
 
-    setInterval(checkAlert, 1000);
+    loadSettings();
+    setInterval(pollNext, 1000);
+    setInterval(() => { loadSettings(); updateGoalBar(); }, 5000);
 </script>
 </body>
 </html>
