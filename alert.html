@@ -2,7 +2,7 @@
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
-    <style id="dynamic-styles">
+    <style>
         html, body {
             margin: 0;
             padding: 0;
@@ -73,9 +73,9 @@
         }
     </style>
 </head>
-<body onclick="unlockAudio()">
+<body>
 
-<audio id="trade-sound" src="sounds/trade.mp3" preload="auto"></audio>
+<audio id="trade-sound" src="sounds/trade.mp3" preload="auto" muted></audio>
 
 <div id="container">
     <div id="alert-box">
@@ -94,7 +94,74 @@
     let playQueue = [];
     let isPlaying = false;
     let settings = {};
+    let audioReady = false;
 
+    // --- Audio unlock ---
+    const sound = document.getElementById('trade-sound');
+
+    // 1) Zkusíme přehrát hned po loadu (muted autoplay je povolený)
+    sound.play().then(() => {
+        sound.pause();
+        sound.currentTime = 0;
+        audioReady = true;
+    }).catch(() => {});
+
+    // 2) Fallback: Web Audio API oscillator (pomáhá v OBS)
+    try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (Ctx) {
+            const ctx = new Ctx();
+            if (ctx.state === 'suspended') ctx.resume();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            gain.gain.value = 0.001;
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(0);
+            osc.stop(0.05);
+        }
+    } catch (e) {}
+
+    // 3) Kliknutí/touch jako fallback pro prohlížeče
+    function onClickUnlock() {
+        sound.muted = false;
+        sound.play().then(() => {
+            sound.pause();
+            sound.currentTime = 0;
+            audioReady = true;
+        }).catch(() => {});
+    }
+    document.addEventListener('click', onClickUnlock, { once: true });
+    document.addEventListener('touchstart', onClickUnlock, { once: true });
+
+    // 4) Po 500 ms zkusíme znovu (některé prohlížeče potřebují víc času)
+    setTimeout(() => {
+        if (!audioReady) {
+            sound.play().then(() => {
+                sound.pause();
+                sound.currentTime = 0;
+                audioReady = true;
+            }).catch(() => {});
+        }
+    }, 500);
+
+    // --- Nastavení zvuku (pouze pokud se změnil) ---
+    let lastSoundUrl = '';
+
+    function setSound(url) {
+        if (url === lastSoundUrl) return;
+        lastSoundUrl = url;
+        sound.src = url;
+        sound.load();
+        // Zkusíme znovu odemknout s novým zdrojem
+        sound.play().then(() => {
+            sound.pause();
+            sound.currentTime = 0;
+            audioReady = true;
+        }).catch(() => {});
+    }
+
+    // --- Settings ---
     async function loadSettings() {
         try {
             const res = await fetch('/api/settings');
@@ -111,12 +178,10 @@
         const box = document.getElementById('alert-box');
         const label = document.querySelector('.label');
         const totalVal = document.querySelector('.total-value');
-        const style = document.getElementById('dynamic-styles');
 
         if (settings.alert_primary_color) {
             box.style.borderLeftColor = settings.alert_primary_color;
             if (label) label.style.color = settings.alert_primary_color;
-            style.textContent = style.textContent.replace(/--alert-primary--/g, settings.alert_primary_color);
         }
         if (settings.alert_secondary_color) {
             if (totalVal) totalVal.style.color = settings.alert_secondary_color;
@@ -125,8 +190,7 @@
             box.style.fontFamily = settings.alert_font_family;
         }
         if (settings.alert_sound) {
-            const sound = document.getElementById('trade-sound');
-            sound.src = settings.alert_sound;
+            setSound(settings.alert_sound);
         }
     }
 
@@ -144,14 +208,7 @@
         }
     }
 
-    function unlockAudio() {
-        const sound = document.getElementById('trade-sound');
-        sound.play().then(() => {
-            sound.pause();
-            sound.currentTime = 0;
-        }).catch(e => console.log("Interakce nutná"));
-    }
-
+    // --- Alert polling ---
     async function pollNext() {
         try {
             const response = await fetch(`/api/alert/next?t=${Date.now()}`);
@@ -182,9 +239,9 @@
         
         const duration = (settings.alert_duration || 8) * 1000;
 
-        const sound = document.getElementById('trade-sound');
+        sound.muted = false;
         sound.currentTime = 0;
-        sound.play().catch(error => console.warn("Zvuk blokován, klikni na Interakci v OBS."));
+        sound.play().catch(() => {});
 
         updateGoalBar();
 
@@ -199,7 +256,15 @@
 
     loadSettings();
     setInterval(pollNext, 1000);
-    setInterval(() => { loadSettings(); updateGoalBar(); }, 5000);
+    setInterval(() => {
+        fetch('/api/settings').then(r => r.ok && r.json()).then(s => {
+            if (s && JSON.stringify(s) !== JSON.stringify(settings)) {
+                settings = s;
+                applySettings();
+            }
+            updateGoalBar();
+        }).catch(() => {});
+    }, 5000);
 </script>
 </body>
 </html>

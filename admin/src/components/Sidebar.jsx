@@ -6,12 +6,11 @@ const navItems = [
   { to: '/', label: 'Dashboard', icon: DashboardIcon, shortcut: '1' },
   { to: '/history', label: 'Historie', icon: HistoryIcon, shortcut: '2' },
   { to: '/statistics', label: 'Statistiky', icon: StatsIcon, shortcut: '3' },
-  { to: '/live', label: 'Live Alert', icon: LiveIcon, shortcut: '4' },
+  { to: '/alert', label: 'Alert', icon: LiveIcon, shortcut: '4' },
   { to: '/accounts', label: 'Správa', icon: AccountsIcon, shortcut: '5' },
   { to: '/console', label: 'Konzole', icon: TerminalIcon, shortcut: '6' },
   { to: '/trades', label: 'Obchody', icon: TradeIcon, shortcut: '7' },
-  { to: '/alert-settings', label: 'Alert overlay', icon: PaletteIcon, shortcut: '8' },
-  { to: '/goal', label: 'Donation Goal', icon: GoalIcon, shortcut: '9' },
+  { to: '/goal', label: 'Donation Goal', icon: GoalIcon, shortcut: '8' },
   { to: '/leaderboard', label: 'Leaderboard', icon: LeaderboardIcon, shortcut: '0' },
   { to: '/update', label: 'Aktualizace', icon: UpdateIcon, shortcut: undefined },
 ];
@@ -150,14 +149,6 @@ function TradeIcon({ className }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-    </svg>
-  );
-}
-function PaletteIcon({ className }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="13.5" cy="6.5" r="0.5" /><circle cx="17.5" cy="10.5" r="0.5" /><circle cx="8.5" cy="7.5" r="0.5" /><circle cx="6.5" cy="12.5" r="0.5" />
-      <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.93 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-1 0-.83.67-1.5 1.5-1.5H16c3.31 0 6-2.69 6-6 0-5.5-4.5-10-10-10z" />
     </svg>
   );
 }

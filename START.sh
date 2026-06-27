@@ -1,2 +1,2 @@
 #!/bin/bash
-node gui.js
+node src/gui.js

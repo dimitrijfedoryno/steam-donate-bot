@@ -3,8 +3,8 @@ const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
 
-const ROOT = __dirname;
-const { loadStats, formatValue } = require('./src/stats');
+const ROOT = path.resolve(__dirname, '..');
+const { loadStats, formatValue } = require('./stats');
 
 const STATUS_FILE = path.join(ROOT, 'logs', 'bot.running');
 const LOG_DIR = path.join(ROOT, 'logs');

@@ -5,7 +5,6 @@ import Dashboard from './components/Dashboard';
 import DonationHistory from './components/DonationHistory';
 import Statistics from './components/Statistics';
 import Accounts from './components/Accounts';
-import LiveAlert from './components/LiveAlert';
 import Console from './components/Console';
 import TradeOffers from './components/TradeOffers';
 import AlertSettings from './components/AlertSettings';
@@ -22,7 +21,7 @@ function AppRoutes() {
     const handleKey = (e) => {
       if (e.ctrlKey && e.key >= '1' && e.key <= '9') {
         e.preventDefault();
-        const routes = ['/', '/history', '/statistics', '/live', '/accounts', '/console', '/trades', '/alert-settings', '/goal'];
+        const routes = ['/', '/history', '/statistics', '/alert', '/accounts', '/console', '/trades', '/goal', '/leaderboard'];
         const idx = parseInt(e.key) - 1;
         if (routes[idx]) navigate(routes[idx]);
       }
@@ -60,9 +59,10 @@ function AppRoutes() {
       <Route path="/history" element={<DonationHistory />} />
       <Route path="/statistics" element={<Statistics />} />
       <Route path="/accounts" element={<Accounts />} />
-      <Route path="/live" element={<LiveAlert />} />
+      <Route path="/alert" element={<AlertSettings />} />
       <Route path="/console" element={<Console />} />
       <Route path="/trades" element={<TradeOffers />} />
+      <Route path="/live" element={<AlertSettings />} />
       <Route path="/alert-settings" element={<AlertSettings />} />
       <Route path="/goal" element={<DonationGoal />} />
       <Route path="/leaderboard" element={<Leaderboard />} />

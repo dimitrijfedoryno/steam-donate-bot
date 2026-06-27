@@ -151,7 +151,11 @@ function startServer(port, testTriggerFile, alertQueueFile, botInstances) {
         const ext = path.extname(filePath);
         fs.readFile(filePath, (err, data) => {
             if (err) { res.writeHead(404); res.end('Not found'); return; }
-            res.writeHead(status, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
+            res.writeHead(status, {
+                'Content-Type': MIME[ext] || 'application/octet-stream',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+            });
             res.end(data);
         });
     }
