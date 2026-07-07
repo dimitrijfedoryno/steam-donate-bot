@@ -324,6 +324,11 @@ function startServer(port, testTriggerFile, alertQueueFile, botInstances) {
                 if (req.method === 'PUT') {
                     return collectBody(req, (data) => {
                         const updated = settingsMod.save(data);
+                        if (data.steam_rich_presence !== undefined && botInstances) {
+                            for (const bot of botInstances) {
+                                if (bot.setRichPresence) bot.setRichPresence();
+                            }
+                        }
                         return sendJson(res, updated);
                     });
                 }

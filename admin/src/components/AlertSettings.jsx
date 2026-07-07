@@ -85,6 +85,7 @@ export default function AlertSettings() {
   const [webhookUrl, setWebhookUrl] = useState('');
   const [minValue, setMinValue] = useState('');
   const prevTs = useRef(null);
+  const showTimeoutRef = useRef(null);
 
   const obsUrl = `${window.location.origin}/alert.html`;
 
@@ -103,9 +104,10 @@ export default function AlertSettings() {
         if (data && data.timestamp && data.timestamp !== prevTs.current) {
           prevTs.current = data.timestamp;
           setAlert(data);
+          if (showTimeoutRef.current) clearTimeout(showTimeoutRef.current);
           setShow(true);
           setHistory(h => [{ ...data, id: Date.now() }, ...h].slice(0, 20));
-          setTimeout(() => setShow(false), 8000);
+          showTimeoutRef.current = setTimeout(() => setShow(false), 8000);
         }
       } catch {}
     };
@@ -308,13 +310,52 @@ export default function AlertSettings() {
               {saving ? 'Ukládám...' : 'Uložit font'}
             </button>
           </div>
+
+          <div className="card p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="stat-label">Steam Rich Presence</h2>
+                <p className="text-xs text-gray-500 mt-1">Bot bude na Steamu online a bude hrát Counter-Strike 2</p>
+              </div>
+              <button
+                onClick={() => save({ steam_rich_presence: !settings.steam_rich_presence })}
+                disabled={saving}
+                className={`relative w-14 h-7 rounded-full transition-colors ${
+                  settings.steam_rich_presence ? 'bg-accent-green' : 'bg-dark-500'
+                }`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${
+                  settings.steam_rich_presence ? 'translate-x-7' : 'translate-x-0'
+                }`} />
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-6">
           <AlertPreview settings={settings} />
 
           <div className="card p-5">
-            <h2 className="stat-label mb-3">Live náhled</h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="stat-label">Live náhled</h2>
+              <button
+                onClick={() => {
+                  if (alert) {
+                    if (showTimeoutRef.current) clearTimeout(showTimeoutRef.current);
+                    setShow(true);
+                    showTimeoutRef.current = setTimeout(() => setShow(false), 8000);
+                  }
+                }}
+                disabled={!alert}
+                className={`text-xs px-3 py-1.5 rounded-lg transition-colors font-medium ${
+                  alert
+                    ? 'bg-dark-500 hover:bg-dark-400 text-white'
+                    : 'bg-dark-600/30 text-gray-600 cursor-not-allowed'
+                }`}
+              >
+                Zobrazit poslední
+              </button>
+            </div>
             <div className="relative bg-dark-800 rounded-xl overflow-hidden min-h-[200px]">
               <div className={`absolute inset-0 transition-all duration-1000 ${show ? 'opacity-100' : 'opacity-0'}`}>
                 <div className="absolute inset-0 bg-gradient-to-br from-accent-green/5 via-transparent to-transparent" />

@@ -90,6 +90,16 @@ class AccountBot {
     this.client.on('loggedOn', () => {
       console.log(`[${this.name}] Přihlášen ke Steamu`);
       botStatus.setOnline(this.index, this.name);
+      // Nastavit online stav a hru co nejdříve
+      try {
+        const s = settingsMod.load();
+        if (s.steam_rich_presence) {
+          this.client.setPersona(SteamUser.EPersonaState.Online);
+          this.client.gamesPlayed([730]);
+        }
+      } catch (e) {
+        console.log(`[${this.name}] Chyba nastavení stavu: ${e.message}`);
+      }
     });
 
     this.client.on('webSession', (sessionID, cookies) => {
@@ -102,6 +112,7 @@ class AccountBot {
         }
         console.log(`[${this.name}] >>> ONLINE A PŘIPRAVEN <<<`);
         botStatus.setOnline(this.index, this.name);
+        this.setRichPresence();
         if (this.onReady) this.onReady(this);
       });
     });
@@ -233,6 +244,22 @@ class AccountBot {
         else offer.decline(cb);
       });
     });
+  }
+
+  setRichPresence() {
+    try {
+      const s = settingsMod.load();
+      this.client.setPersona(SteamUser.EPersonaState.Online);
+      if (s.steam_rich_presence) {
+        this.client.gamesPlayed([730]);
+        console.log(`[${this.name}] Hraje: Counter-Strike 2`);
+      } else {
+        this.client.gamesPlayed([]);
+        console.log(`[${this.name}] Online (bez hry)`);
+      }
+    } catch (e) {
+      console.log(`[${this.name}] Chyba nastavení hry: ${e.message}`);
+    }
   }
 
   _scheduleReconnect() {

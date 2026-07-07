@@ -13,6 +13,7 @@ const DEFAULTS = {
     alert_secondary_color: '#ffcc00',
     alert_font_family: "'Arial Black', sans-serif",
     admin_notify_sound: 'sounds/notification.mp3',
+    steam_rich_presence: true,
 };
 
 function load() {
