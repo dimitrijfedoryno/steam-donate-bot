@@ -1,0 +1,12 @@
+version: "3.8"
+
+services:
+  steam-donate-bot:
+    build: .
+    container_name: steam-donate-bot
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./logs:/app/logs
+      - ./.env:/app/.env:ro

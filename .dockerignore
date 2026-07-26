@@ -1,0 +1,12 @@
+node_modules/
+admin/node_modules/
+admin/dist/
+logs/
+.git/
+.env
+*.log
+*.bat
+*.DS_Store
+START.bat
+START.sh
+README.md
