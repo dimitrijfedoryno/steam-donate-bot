@@ -1,0 +1,27 @@
+version: "3.8"
+
+# ============================================================
+# Portainer Stack — Steam Donate Bot pro RPi5 / OMV
+# ============================================================
+# 1. Uprav REPO_URL za svůj git fork
+# 2. Uprav cestu /srv/... za svůj Shared Folder z OMV
+# 3. Vytvoř soubor .env ve složce steam-bot/ s tvými údaji
+# 4. Deploy
+# ============================================================
+
+services:
+  steam-donate-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile.rpi
+      args:
+        REPO_URL: https://github.com/TVA-ZA/steam-stream-donate-bot.git
+        REPO_BRANCH: main
+    container_name: steam-donate-bot
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      # UPRAV TUTO CESTU — tvůj Shared Folder v OMV
+      - /srv/dev-disk-by-uuid-REPLACE/steam-bot/logs:/app/logs
+      - /srv/dev-disk-by-uuid-REPLACE/steam-bot/.env:/app/.env:ro
