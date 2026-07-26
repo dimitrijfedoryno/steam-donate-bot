@@ -386,7 +386,7 @@ class AccountBot {
 
   setup2FA() {
     return new Promise((resolve, reject) => {
-      this.community.enableTwoFactor((err, response) => {
+      this.client.enableTwoFactor((err, response) => {
         if (err) return reject(err);
         if (response && response.success) {
           resolve({

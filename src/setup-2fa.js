@@ -114,7 +114,7 @@ async function main() {
     }
 
     console.log('\nAktivuji mobilní 2FA (vyžaduje telefon na účtu)...');
-    community.enableTwoFactor((err, response) => {
+    client.enableTwoFactor((err, response) => {
         if (err) {
             console.error(`\nChyba: ${err.message}`);
             if (err.message.includes('phone')) {

@@ -194,7 +194,7 @@ function startServer(port, testTriggerFile, alertQueueFile, botInstances) {
                     promise: new Promise((res, rej) => {
                         client.once('webSession', (sessionID, cookies) => {
                             community.setCookies(cookies);
-                            community.enableTwoFactor((err, response) => {
+                            client.enableTwoFactor((err, response) => {
                                 if (err) { rej(err); return; }
                                 if (response && response.success) {
                                     res({
@@ -223,7 +223,7 @@ function startServer(port, testTriggerFile, alertQueueFile, botInstances) {
 
             client.on('webSession', (sessionID, cookies) => {
                 community.setCookies(cookies);
-                community.enableTwoFactor((err, response) => {
+                client.enableTwoFactor((err, response) => {
                     clearTimeout(timeout);
                     if (resolved) return;
                     if (err) { resolved = true; reject(err); return; }
