@@ -195,6 +195,7 @@ function startServer(port, testTriggerFile, alertQueueFile, botInstances) {
                         client.once('webSession', (sessionID, cookies) => {
                             community.setCookies(cookies);
                             client.enableTwoFactor((err, response) => {
+                                console.log('[2FA DEBUG] response:', JSON.stringify(response));
                                 if (err) { rej(err); return; }
                                 if (response && response.success) {
                                     res({

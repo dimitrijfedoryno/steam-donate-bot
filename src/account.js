@@ -387,6 +387,7 @@ class AccountBot {
   setup2FA() {
     return new Promise((resolve, reject) => {
       this.client.enableTwoFactor((err, response) => {
+        console.log('[2FA DEBUG] response:', JSON.stringify(response));
         if (err) return reject(err);
         if (response && response.success) {
           resolve({
@@ -395,7 +396,13 @@ class AccountBot {
             revocation_code: response.revocation_code,
           });
         } else {
-          reject(new Error(response ? JSON.stringify(response) : '2FA selhalo'));
+          let msg = '2FA selhalo';
+          if (response) {
+            if (response.status === 2) msg = 'Účet nemá ověřené telefonní číslo. Přidej telefon na steamcommunity.com/edit/settings';
+            else if (response.status === 29) msg = '2FA už je aktivní';
+            else msg = JSON.stringify(response);
+          }
+          reject(new Error(msg));
         }
       });
     });
