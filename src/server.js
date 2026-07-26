@@ -68,12 +68,14 @@ function getAccounts() {
             const pw = content.match(new RegExp(`^STEAM_PASSWORD_${i}=(.*)$`, 'm'));
             const ss = content.match(new RegExp(`^STEAM_SHARED_SECRET_${i}=(.*)$`, 'm'));
             const is = content.match(new RegExp(`^STEAM_IDENTITY_SECRET_${i}=(.*)$`, 'm'));
+            const rc = content.match(new RegExp(`^STEAM_REVOCATION_CODE_${i}=(.*)$`, 'm'));
             accounts.push({
                 index: i,
                 username: m[1].trim(),
                 password: pw ? pw[1].trim() : '',
                 shared_secret: ss ? ss[1].trim() : '',
                 identity_secret: is ? is[1].trim() : '',
+                revocation_code: rc ? rc[1].trim() : '',
             });
         }
     }
@@ -86,7 +88,6 @@ function addAccount(data) {
     let idx = 1;
     while (used.has(idx)) idx++;
     const lines = readEnv().split('\n');
-    // Remove trailing empty lines
     while (lines.length > 0 && lines[lines.length - 1].trim() === '') lines.pop();
     lines.push('');
     lines.push(`# === Účet ${idx} ===`);
@@ -94,6 +95,7 @@ function addAccount(data) {
     lines.push(`STEAM_PASSWORD_${idx}=${data.password}`);
     lines.push(`STEAM_SHARED_SECRET_${idx}=${data.shared_secret || ''}`);
     lines.push(`STEAM_IDENTITY_SECRET_${idx}=${data.identity_secret || ''}`);
+    lines.push(`STEAM_REVOCATION_CODE_${idx}=${data.revocation_code || ''}`);
     writeEnv(lines.join('\n'));
     return { index: idx, ...data };
 }
@@ -107,6 +109,7 @@ function updateAccount(data) {
         if (line.startsWith(`STEAM_PASSWORD_${idx}=`)) return `STEAM_PASSWORD_${idx}=${data.password}`;
         if (line.startsWith(`STEAM_SHARED_SECRET_${idx}=`)) return `STEAM_SHARED_SECRET_${idx}=${data.shared_secret || ''}`;
         if (line.startsWith(`STEAM_IDENTITY_SECRET_${idx}=`)) return `STEAM_IDENTITY_SECRET_${idx}=${data.identity_secret || ''}`;
+        if (line.startsWith(`STEAM_REVOCATION_CODE_${idx}=`)) return `STEAM_REVOCATION_CODE_${idx}=${data.revocation_code || ''}`;
         return line;
     });
     writeEnv(updatedLines.join('\n'));
@@ -117,7 +120,7 @@ function deleteAccount(index) {
     let content = readEnv();
     const lines = content.split('\n');
     const updatedLines = lines.map(line => {
-        const re = new RegExp(`^(STEAM_USERNAME_${index}|STEAM_PASSWORD_${index}|STEAM_SHARED_SECRET_${index}|STEAM_IDENTITY_SECRET_${index})=`);
+        const re = new RegExp(`^(STEAM_USERNAME_${index}|STEAM_PASSWORD_${index}|STEAM_SHARED_SECRET_${index}|STEAM_IDENTITY_SECRET_${index}|STEAM_REVOCATION_CODE_${index})=`);
         if (re.test(line)) return '# ' + line;
         return line;
     });
@@ -194,16 +197,23 @@ function startServer(port, testTriggerFile, alertQueueFile, botInstances) {
                     promise: new Promise((res, rej) => {
                         client.once('webSession', (sessionID, cookies) => {
                             community.setCookies(cookies);
-                            client.enableTwoFactor((err, response) => {
-                                console.log('[2FA DEBUG] response:', JSON.stringify(response));
-                                if (err) { rej(err); return; }
-                                if (response && response.success) {
-                                    res({
-                                        shared_secret: response.shared_secret,
-                                        identity_secret: response.identity_secret,
-                                        revocation_code: response.revocation_code,
-                                    });
-                                } else {
+                            const tryEnable2FA = (attempt = 1) => {
+                                client.enableTwoFactor((err, response) => {
+                                    console.log('[2FA DEBUG] attempt', attempt, 'response:', JSON.stringify(response));
+                                    if (err) { rej(err); return; }
+                                    if (response && response.success) {
+                                        res({
+                                            shared_secret: response.shared_secret,
+                                            identity_secret: response.identity_secret,
+                                            revocation_code: response.revocation_code,
+                                        });
+                                        return;
+                                    }
+                                    if (response && response.status === 2 && attempt < 5) {
+                                        console.log('[2FA] Telefon ještě není propagován, čekám 30s...');
+                                        setTimeout(() => tryEnable2FA(attempt + 1), 30000);
+                                        return;
+                                    }
                                     let msg = '2FA selhalo';
                                     if (response) {
                                         if (response.status === 2) msg = 'Účet nemá ověřené telefonní číslo. Přidej telefon na steamcommunity.com/edit/settings';
@@ -211,8 +221,9 @@ function startServer(port, testTriggerFile, alertQueueFile, botInstances) {
                                         else msg = JSON.stringify(response);
                                     }
                                     rej(new Error(msg));
-                                }
-                            });
+                                });
+                            };
+                            tryEnable2FA();
                         });
                         client.once('error', (err) => { rej(err); });
                     }),
@@ -241,10 +252,15 @@ function startServer(port, testTriggerFile, alertQueueFile, botInstances) {
                             identity_secret: response.identity_secret,
                             revocation_code: response.revocation_code,
                         });
-                    } else {
-                        resolved = true;
-                        reject(new Error(response ? JSON.stringify(response) : '2FA selhalo'));
+                        return;
                     }
+                    if (response && response.status === 2) {
+                        resolved = true;
+                        reject(new Error('Účet nemá ověřené telefonní číslo. Přidej telefon na steamcommunity.com/edit/settings a zkus znovu.'));
+                        return;
+                    }
+                    resolved = true;
+                    reject(new Error(response ? JSON.stringify(response) : '2FA selhalo'));
                 });
             });
 

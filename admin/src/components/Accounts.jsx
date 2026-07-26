@@ -17,7 +17,7 @@ export default function Accounts() {
   const [acctLoading, setAcctLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editAcc, setEditAcc] = useState(null);
-  const [formData, setFormData] = useState({ username: '', password: '', shared_secret: '', identity_secret: '' });
+  const [formData, setFormData] = useState({ username: '', password: '', shared_secret: '', identity_secret: '', revocation_code: '' });
   const [saving, setSaving] = useState(false);
 
   // 2FA setup modal states
@@ -96,7 +96,7 @@ export default function Accounts() {
   // --- Account CRUD ---
   const openAdd = () => {
     setEditAcc(null);
-    setFormData({ username: '', password: '', shared_secret: '', identity_secret: '' });
+    setFormData({ username: '', password: '', shared_secret: '', identity_secret: '', revocation_code: '' });
     setSetupState('idle');
     setSetupData({});
     setGuardCode('');
@@ -110,6 +110,7 @@ export default function Accounts() {
       password: acc.password || '',
       shared_secret: acc.shared_secret || '',
       identity_secret: acc.identity_secret || '',
+      revocation_code: acc.revocation_code || '',
     });
     setSetupState('idle');
     setSetupData({});
@@ -130,11 +131,18 @@ export default function Accounts() {
     if (!formData.username.trim()) return;
     setSaving(true);
     try {
+      const data = {
+        username: formData.username.trim(),
+        password: formData.password,
+        shared_secret: formData.shared_secret.trim(),
+        identity_secret: formData.identity_secret.trim(),
+        revocation_code: formData.revocation_code.trim(),
+      };
       if (editAcc) {
-        const res = await updateAccount({ ...formData, index: editAcc.index });
+        const res = await updateAccount({ ...data, index: editAcc.index });
         setAccounts(prev => prev.map(a => a.index === editAcc.index ? { ...a, ...res } : a));
       } else {
-        const res = await addAccount(formData);
+        const res = await addAccount(data);
         setAccounts(prev => [...prev, res]);
       }
       setShowModal(false);
@@ -415,20 +423,15 @@ function ModalContent({ mode, editAcc, formData, setFormData, saving, handleSave
       <div className="space-y-4">
         {fi('Steam uživatelské jméno', <input type="text" required value={formData.username} onChange={e => setFormData(f => ({ ...f, username: e.target.value }))} className="input-field" placeholder="např. skinboxboteu" />)}
         {fi('Heslo', <input type="password" required value={formData.password} onChange={e => setFormData(f => ({ ...f, password: e.target.value }))} className="input-field" placeholder="••••••••" />)}
-        <button onClick={handleAddWith2FA} disabled={!formData.username || !formData.password}
-          className="w-full px-4 py-2.5 rounded-lg bg-accent-green/20 border border-accent-green/30 text-accent-green text-sm font-medium hover:bg-accent-green/30 transition-all disabled:opacity-40 flex items-center justify-center gap-2">
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
-          Přidat a nastavit 2FA
+        <div className="border-t border-dark-500 pt-4 mt-2">
+          <p className="text-xs text-gray-400 mb-3">Máte 2FA klíče (ze Steam Desktop Authenticator)?</p>
+          {fi('Shared secret', <input type="text" value={formData.shared_secret} onChange={e => setFormData(f => ({ ...f, shared_secret: e.target.value }))} className="input-field font-mono text-xs" placeholder="shared_secret" />)}
+          {fi('Identity secret', <input type="text" value={formData.identity_secret} onChange={e => setFormData(f => ({ ...f, identity_secret: e.target.value }))} className="input-field font-mono text-xs" placeholder="identity_secret" />)}
+          {fi('Revocation code (volitelné)', <input type="text" value={formData.revocation_code} onChange={e => setFormData(f => ({ ...f, revocation_code: e.target.value }))} className="input-field font-mono text-xs" placeholder="revocation_code" />)}
+        </div>
+        <button onClick={handleSave} disabled={saving || !formData.username} className="w-full btn-primary py-2.5 flex items-center justify-center gap-2 disabled:opacity-40">
+          {saving ? 'Ukládám...' : 'Přidat účet'}
         </button>
-        <div className="flex items-center gap-3">
-          <div className="flex-1 h-px bg-dark-500" /><span className="text-[10px] text-gray-500 uppercase">nebo</span><div className="flex-1 h-px bg-dark-500" />
-        </div>
-        <div className="flex gap-3">
-          <button type="button" onClick={closeSetupModal} className="flex-1 px-4 py-2 rounded-lg border border-dark-400 text-gray-300 text-sm font-medium hover:bg-dark-600 transition-colors">Zrušit</button>
-          <button onClick={handleSave} disabled={saving || !formData.username} className="flex-1 px-4 py-2 rounded-lg bg-dark-600 border border-dark-400 text-gray-300 text-sm font-medium hover:bg-dark-500 transition-all disabled:opacity-40">
-            {saving ? 'Ukládám...' : 'Přidat bez 2FA'}
-          </button>
-        </div>
       </div>
     </>
   );
