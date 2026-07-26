@@ -69,6 +69,8 @@ function getAccounts() {
             const ss = content.match(new RegExp(`^STEAM_SHARED_SECRET_${i}=(.*)$`, 'm'));
             const is = content.match(new RegExp(`^STEAM_IDENTITY_SECRET_${i}=(.*)$`, 'm'));
             const rc = content.match(new RegExp(`^STEAM_REVOCATION_CODE_${i}=(.*)$`, 'm'));
+            const pn = content.match(new RegExp(`^STEAM_PERSONA_NAME_${i}=(.*)$`, 'm'));
+            const pc = content.match(new RegExp(`^STEAM_PLAY_CS2_${i}=(.*)$`, 'm'));
             accounts.push({
                 index: i,
                 username: m[1].trim(),
@@ -76,6 +78,8 @@ function getAccounts() {
                 shared_secret: ss ? ss[1].trim() : '',
                 identity_secret: is ? is[1].trim() : '',
                 revocation_code: rc ? rc[1].trim() : '',
+                personaName: pn ? pn[1].trim() : '',
+                play_cs2: pc ? pc[1].trim() === 'true' : true,
             });
         }
     }
@@ -96,6 +100,8 @@ function addAccount(data) {
     lines.push(`STEAM_SHARED_SECRET_${idx}=${data.shared_secret || ''}`);
     lines.push(`STEAM_IDENTITY_SECRET_${idx}=${data.identity_secret || ''}`);
     lines.push(`STEAM_REVOCATION_CODE_${idx}=${data.revocation_code || ''}`);
+    lines.push(`STEAM_PERSONA_NAME_${idx}=${data.personaName || ''}`);
+    lines.push(`STEAM_PLAY_CS2_${idx}=${data.play_cs2 === true}`);
     writeEnv(lines.join('\n'));
     return { index: idx, ...data };
 }
@@ -110,6 +116,8 @@ function updateAccount(data) {
         if (line.startsWith(`STEAM_SHARED_SECRET_${idx}=`)) return `STEAM_SHARED_SECRET_${idx}=${data.shared_secret || ''}`;
         if (line.startsWith(`STEAM_IDENTITY_SECRET_${idx}=`)) return `STEAM_IDENTITY_SECRET_${idx}=${data.identity_secret || ''}`;
         if (line.startsWith(`STEAM_REVOCATION_CODE_${idx}=`)) return `STEAM_REVOCATION_CODE_${idx}=${data.revocation_code || ''}`;
+        if (line.startsWith(`STEAM_PERSONA_NAME_${idx}=`)) return `STEAM_PERSONA_NAME_${idx}=${data.personaName || ''}`;
+        if (line.startsWith(`STEAM_PLAY_CS2_${idx}=`)) return `STEAM_PLAY_CS2_${idx}=${data.play_cs2 === true}`;
         return line;
     });
     writeEnv(updatedLines.join('\n'));
@@ -120,7 +128,7 @@ function deleteAccount(index) {
     let content = readEnv();
     const lines = content.split('\n');
     const updatedLines = lines.map(line => {
-        const re = new RegExp(`^(STEAM_USERNAME_${index}|STEAM_PASSWORD_${index}|STEAM_SHARED_SECRET_${index}|STEAM_IDENTITY_SECRET_${index}|STEAM_REVOCATION_CODE_${index})=`);
+        const re = new RegExp(`^(STEAM_USERNAME_${index}|STEAM_PASSWORD_${index}|STEAM_SHARED_SECRET_${index}|STEAM_IDENTITY_SECRET_${index}|STEAM_REVOCATION_CODE_${index}|STEAM_PERSONA_NAME_${index}|STEAM_PLAY_CS2_${index})=`);
         if (re.test(line)) return '# ' + line;
         return line;
     });
@@ -476,11 +484,6 @@ function startServer(port, testTriggerFile, alertQueueFile, botInstances) {
                 if (req.method === 'PUT') {
                     return collectBody(req, (data) => {
                         const updated = settingsMod.save(data);
-                        if (data.steam_rich_presence !== undefined && botInstances) {
-                            for (const bot of botInstances) {
-                                if (bot.setRichPresence) bot.setRichPresence();
-                            }
-                        }
                         return sendJson(res, updated);
                     });
                 }

@@ -1,8 +1,9 @@
 const statuses = new Map();
 
-function setOnline(index, username) {
+function setOnline(index, username, personaName) {
     statuses.set(index, {
         username,
+        personaName: personaName || username,
         online: true,
         connectedAt: Date.now(),
         lastActivity: Date.now(),
@@ -11,6 +12,11 @@ function setOnline(index, username) {
         error: null,
         reconnecting: false,
     });
+}
+
+function setPersonaName(index, personaName) {
+    const cur = statuses.get(index);
+    if (cur) cur.personaName = personaName;
 }
 
 function setOffline(index, error = null) {
@@ -46,7 +52,7 @@ function bumpActivity(index) {
 }
 
 function getAll() {
-    return Array.from(statuses.values());
+    return Array.from(statuses.entries()).map(([index, data]) => ({ index, ...data }));
 }
 
-module.exports = { setOnline, setOffline, setReconnecting, setSteamLevel, bumpActivity, getAll };
+module.exports = { setOnline, setOffline, setReconnecting, setSteamLevel, bumpActivity, getAll, setPersonaName };

@@ -100,6 +100,7 @@ class AccountBot {
   constructor(config, { logFile, alertFile, alertQueueFile, onReady }) {
     this.name = config.username;
     this.index = config.index;
+    this.config = config;
     this.logFile = logFile;
     this.alertFile = alertFile;
     this.alertQueueFile = alertQueueFile;
@@ -154,11 +155,24 @@ class AccountBot {
 
     this.client.on('loggedOn', () => {
       console.log(`[${this.name}] Přihlášen ke Steamu`);
-      botStatus.setOnline(this.index, this.name);
-      // Nastavit online stav a hru co nejdříve
+      botStatus.setOnline(this.index, this.name, this.client.personaName);
+      // Zkusíme načíst personaName
       try {
-        const s = settingsMod.load();
-        if (s.steam_rich_presence) {
+        if (this.client.steamID) {
+          this.client.getPersonas([this.client.steamID], (personas) => {
+            const steamID64 = this.client.steamID.getSteamID64();
+            const persona = personas && personas[steamID64];
+            if (persona && persona.player_name) {
+              botStatus.setPersonaName(this.index, persona.player_name);
+            }
+          });
+        }
+      } catch (e) {
+        console.log(`[${this.name}] Chyba načítání personaName: ${e.message}`);
+      }
+      // Nastavit online stav a hru co nejdříve (per-account nastavení)
+      try {
+        if (this.config.play_cs2 !== false) {
           this.client.setPersona(SteamUser.EPersonaState.Online);
           this.client.gamesPlayed([730]);
         }
@@ -349,12 +363,12 @@ class AccountBot {
 
   setRichPresence() {
     try {
-      const s = settingsMod.load();
-      this.client.setPersona(SteamUser.EPersonaState.Online);
-      if (s.steam_rich_presence) {
+      if (this.config.play_cs2 !== false) {
+        this.client.setPersona(SteamUser.EPersonaState.Online);
         this.client.gamesPlayed([730]);
         console.log(`[${this.name}] Hraje: Counter-Strike 2`);
       } else {
+        this.client.setPersona(SteamUser.EPersonaState.Online);
         this.client.gamesPlayed([]);
         console.log(`[${this.name}] Online (bez hry)`);
       }

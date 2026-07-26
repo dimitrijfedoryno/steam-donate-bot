@@ -309,30 +309,8 @@ export default function AlertSettings() {
               disabled={saving} className="btn-primary text-sm">
               {saving ? 'Ukládám...' : 'Uložit font'}
             </button>
-          </div>
+</div>
 
-          <div className="card p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="stat-label">Steam Rich Presence</h2>
-                <p className="text-xs text-gray-500 mt-1">Bot bude na Steamu online a bude hrát Counter-Strike 2</p>
-              </div>
-              <button
-                onClick={() => save({ steam_rich_presence: !settings.steam_rich_presence })}
-                disabled={saving}
-                className={`relative w-14 h-7 rounded-full transition-colors ${
-                  settings.steam_rich_presence ? 'bg-accent-green' : 'bg-dark-500'
-                }`}
-              >
-                <span className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${
-                  settings.steam_rich_presence ? 'translate-x-7' : 'translate-x-0'
-                }`} />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-6">
           <AlertPreview settings={settings} />
 
           <div className="card p-5">

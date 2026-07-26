@@ -17,7 +17,7 @@ export default function Accounts() {
   const [acctLoading, setAcctLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editAcc, setEditAcc] = useState(null);
-  const [formData, setFormData] = useState({ username: '', password: '', shared_secret: '', identity_secret: '', revocation_code: '' });
+  const [formData, setFormData] = useState({ username: '', password: '', shared_secret: '', identity_secret: '', revocation_code: '', personaName: '', play_cs2: true });
   const [saving, setSaving] = useState(false);
 
   // 2FA setup modal states
@@ -94,16 +94,16 @@ export default function Accounts() {
   };
 
   // --- Account CRUD ---
-  const openAdd = () => {
+const openAdd = () => {
     setEditAcc(null);
-    setFormData({ username: '', password: '', shared_secret: '', identity_secret: '', revocation_code: '' });
+    setFormData({ username: '', password: '', shared_secret: '', identity_secret: '', revocation_code: '', personaName: '', play_cs2: true });
     setSetupState('idle');
     setSetupData({});
     setGuardCode('');
     setShowModal(true);
   };
 
-  const openEdit = (acc) => {
+const openEdit = (acc) => {
     setEditAcc(acc);
     setFormData({
       username: acc.username || '',
@@ -111,6 +111,8 @@ export default function Accounts() {
       shared_secret: acc.shared_secret || '',
       identity_secret: acc.identity_secret || '',
       revocation_code: acc.revocation_code || '',
+      personaName: acc.personaName || '',
+      play_cs2: acc.play_cs2 !== false,
     });
     setSetupState('idle');
     setSetupData({});
@@ -137,6 +139,7 @@ export default function Accounts() {
         shared_secret: formData.shared_secret.trim(),
         identity_secret: formData.identity_secret.trim(),
         revocation_code: formData.revocation_code.trim(),
+        play_cs2: formData.play_cs2,
       };
       if (editAcc) {
         const res = await updateAccount({ ...data, index: editAcc.index });
@@ -259,7 +262,8 @@ export default function Accounts() {
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-white">{acc.username}</span>
+                          <span className="text-sm font-medium text-white">{acc.personaName || acc.username}</span>
+                          <span className="text-xs text-gray-500">({acc.username})</span>
                           <span className="badge-green text-[10px]">#{acc.index}</span>
                         </div>
                         <div className="text-xs text-gray-400 mt-0.5 truncate max-w-[250px]">
@@ -424,6 +428,13 @@ function ModalContent({ mode, editAcc, formData, setFormData, saving, handleSave
         {fi('Steam uživatelské jméno', <input type="text" required value={formData.username} onChange={e => setFormData(f => ({ ...f, username: e.target.value }))} className="input-field" placeholder="např. skinboxboteu" />)}
         {fi('Heslo', <input type="password" required value={formData.password} onChange={e => setFormData(f => ({ ...f, password: e.target.value }))} className="input-field" placeholder="••••••••" />)}
         <div className="border-t border-dark-500 pt-4 mt-2">
+          <p className="text-xs text-gray-400 mb-3">Hra v profilu</p>
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" checked={formData.play_cs2} onChange={e => setFormData(f => ({ ...f, play_cs2: e.target.checked }))} className="w-4 h-4 rounded border-dark-400 text-accent-green focus:ring-accent-green" />
+            <span className="text-sm text-white">Hrát CS2 (zobrazovat v profilu)</span>
+          </label>
+        </div>
+        <div className="border-t border-dark-500 pt-4 mt-2">
           <p className="text-xs text-gray-400 mb-3">Máte 2FA klíče (ze Steam Desktop Authenticator)?</p>
           {fi('Shared secret', <input type="text" value={formData.shared_secret} onChange={e => setFormData(f => ({ ...f, shared_secret: e.target.value }))} className="input-field font-mono text-xs" placeholder="shared_secret" />)}
           {fi('Identity secret', <input type="text" value={formData.identity_secret} onChange={e => setFormData(f => ({ ...f, identity_secret: e.target.value }))} className="input-field font-mono text-xs" placeholder="identity_secret" />)}
@@ -442,9 +453,21 @@ function ModalContent({ mode, editAcc, formData, setFormData, saving, handleSave
       {h('Upravit účet')}
       <div className="space-y-4">
         {fi('Steam uživatelské jméno', <input type="text" required value={formData.username} onChange={e => setFormData(f => ({ ...f, username: e.target.value }))} className="input-field" />)}
+        {fi('Persona Name', <input type="text" value={formData.personaName || ''} onChange={e => setFormData(f => ({ ...f, personaName: e.target.value }))} className="input-field" placeholder="Zobrazované jméno" />)}
         {fi('Heslo', <input type="password" required value={formData.password} onChange={e => setFormData(f => ({ ...f, password: e.target.value }))} className="input-field" />)}
-        {fi('Shared secret', <input type="text" value={formData.shared_secret} onChange={e => setFormData(f => ({ ...f, shared_secret: e.target.value }))} className="input-field font-mono text-xs" />)}
-        {fi('Identity secret', <input type="text" value={formData.identity_secret} onChange={e => setFormData(f => ({ ...f, identity_secret: e.target.value }))} className="input-field font-mono text-xs" />)}
+        <div className="border-t border-dark-500 pt-4 mt-2">
+          <p className="text-xs text-gray-400 mb-3">Hra v profilu</p>
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" checked={formData.play_cs2} onChange={e => setFormData(f => ({ ...f, play_cs2: e.target.checked }))} className="w-4 h-4 rounded border-dark-400 text-accent-green focus:ring-accent-green" />
+            <span className="text-sm text-white">Hrát CS2 (zobrazovat v profilu)</span>
+          </label>
+        </div>
+        <div className="border-t border-dark-500 pt-4 mt-2">
+          <p className="text-xs text-gray-400 mb-3">Máte 2FA klíče (ze Steam Desktop Authenticator)?</p>
+          {fi('Shared secret', <input type="text" value={formData.shared_secret} onChange={e => setFormData(f => ({ ...f, shared_secret: e.target.value }))} className="input-field font-mono text-xs" placeholder="shared_secret" />)}
+          {fi('Identity secret', <input type="text" value={formData.identity_secret} onChange={e => setFormData(f => ({ ...f, identity_secret: e.target.value }))} className="input-field font-mono text-xs" placeholder="identity_secret" />)}
+          {fi('Revocation code (volitelné)', <input type="text" value={formData.revocation_code} onChange={e => setFormData(f => ({ ...f, revocation_code: e.target.value }))} className="input-field font-mono text-xs" placeholder="revocation_code" />)}
+        </div>
         <div className="flex gap-3 pt-2">
           <button type="button" onClick={closeSetupModal} className="flex-1 px-4 py-2 rounded-lg border border-dark-400 text-gray-300 text-sm font-medium hover:bg-dark-600 transition-colors">Zrušit</button>
           <button type="submit" disabled={saving} className="flex-1 btn-primary flex items-center justify-center gap-2">
