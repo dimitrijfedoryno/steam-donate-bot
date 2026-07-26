@@ -7,24 +7,30 @@ const LOG_DIR = path.join(ROOT, 'logs');
 
 if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR, { recursive: true });
 
-const bot = spawn('node', ['src/index.js'], {
-  cwd: ROOT,
-  stdio: ['ignore', 'pipe', 'pipe'],
-  shell: true,
-});
+function startBot() {
+  const bot = spawn('node', ['src/index.js'], {
+    cwd: ROOT,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    shell: true,
+  });
 
-bot.stdout.on('data', (data) => {
-  process.stdout.write(data);
-});
+  bot.stdout.on('data', (data) => {
+    process.stdout.write(data);
+  });
 
-bot.stderr.on('data', (data) => {
-  process.stderr.write(data);
-});
+  bot.stderr.on('data', (data) => {
+    process.stderr.write(data);
+  });
 
-bot.on('close', (code) => {
-  console.log(`\nBot ukončen (kód: ${code})`);
-  process.exit(code);
-});
+  bot.on('close', (code) => {
+    console.log(`\nBot ukončen (kód: ${code}). Restartuji za 3s...`);
+    setTimeout(startBot, 3000);
+  });
 
-process.on('SIGINT', () => { bot.kill(); process.exit(); });
-process.on('SIGTERM', () => { bot.kill(); process.exit(); });
+  return bot;
+}
+
+const mainBot = startBot();
+
+process.on('SIGINT', () => { mainBot.kill(); process.exit(); });
+process.on('SIGTERM', () => { mainBot.kill(); process.exit(); });

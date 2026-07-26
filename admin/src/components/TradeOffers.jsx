@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { getTrades, respondToTrade } from '../api';
+import { getTrades, respondToTrade, getNameCache } from '../api';
 
 const ICON_BASE = 'https://steamcommunity.com/economy/image/';
 const FILTERS = ['all', 'pending', 'accepted', 'declined', 'auto-accepting'];
@@ -13,6 +13,7 @@ const PAGE_SIZE = 20;
 
 export default function TradeOffers() {
   const [trades, setTrades] = useState([]);
+  const [nameMap, setNameMap] = useState({});
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -21,7 +22,11 @@ export default function TradeOffers() {
 
   useEffect(() => {
     const fetch = async () => {
-      try { setTrades(await getTrades()); } catch {}
+      try {
+        const [t, n] = await Promise.all([getTrades(), getNameCache()]);
+        setTrades(t);
+        setNameMap(n.byId || {});
+      } catch {}
     };
     fetch();
     const interval = setInterval(fetch, 5000);
@@ -32,10 +37,13 @@ export default function TradeOffers() {
     let result = filter === 'all' ? trades : trades.filter(t => t.state === filter);
     if (search.trim()) {
       const q = search.toLowerCase();
-      result = result.filter(t => (t.partner_name || '').toLowerCase().includes(q));
+      result = result.filter(t => {
+        const name = nameMap[t.partner_steamid] || t.partner_name || '';
+        return name.toLowerCase().includes(q);
+      });
     }
     return [...result].reverse();
-  }, [trades, filter, search]);
+  }, [trades, filter, search, nameMap]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -49,6 +57,7 @@ export default function TradeOffers() {
     try {
       const res = await respondToTrade(offerId, action, accountIndex);
       if (res.error) setError(res.error);
+      else if (res.confirmed === false && res.error) setError(`2FA selhalo: ${res.error}. Zkus to znovu.`);
       else { const fresh = await getTrades(); setTrades(fresh); }
     } catch (e) { setError(e.message); }
     setActing(null);
@@ -93,7 +102,7 @@ export default function TradeOffers() {
         <>
           <div className="space-y-4">
             {paged.map(trade => (
-              <TradeCard key={trade.offer_id} trade={trade} acting={acting} onAction={handleAction} />
+              <TradeCard key={trade.offer_id} trade={trade} nameMap={nameMap} acting={acting} onAction={handleAction} />
             ))}
           </div>
 
@@ -121,9 +130,11 @@ export default function TradeOffers() {
   );
 }
 
-function TradeCard({ trade, acting, onAction }) {
+function TradeCard({ trade, nameMap, acting, onAction }) {
   const timeAgo = formatTime(trade.created_at);
   const isPending = trade.state === 'pending';
+  const displayName = nameMap[trade.partner_steamid] || trade.partner_name;
+  const steamProfileUrl = trade.partner_steamid ? `https://steamcommunity.com/profiles/${trade.partner_steamid}` : null;
 
   return (
     <div className="card overflow-hidden">
@@ -138,7 +149,12 @@ function TradeCard({ trade, acting, onAction }) {
           }`}>{STATE_LABELS[trade.state] || trade.state}</span>
         </div>
         <div className="flex items-center gap-2 text-xs text-gray-400">
-          <span>od <span className="text-gray-300 font-medium">{trade.partner_name}</span></span>
+          <span>od {steamProfileUrl ? (
+            <a href={steamProfileUrl} target="_blank" rel="noopener noreferrer"
+              className="text-accent-green font-medium hover:underline">{displayName}</a>
+          ) : (
+            <span className="text-gray-300 font-medium">{displayName}</span>
+          )}</span>
           <span>·</span>
           <span>{timeAgo}</span>
         </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { getStats, getStatus, getHistory, getBotsStatus } from '../api';
+import { getStats, getStatus, getHistory, getBotsStatus, getPriceStatus, refreshMarketPrices, getNameCache } from '../api';
 import DonationChart from './DonationChart';
 
 export default function Dashboard() {
@@ -7,6 +7,10 @@ export default function Dashboard() {
   const [status, setStatus] = useState(null);
   const [alerts, setAlerts] = useState([]);
   const [botsStatus, setBotsStatus] = useState([]);
+  const [priceStatus, setPriceStatus] = useState(null);
+  const [nameMap, setNameMap] = useState({});
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshResult, setRefreshResult] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,11 +26,41 @@ export default function Dashboard() {
     };
     fetch();
     const interval = setInterval(fetch, 3000);
-    return () => clearInterval(interval);
+
+    const fetchPrices = async () => {
+      try {
+        const [ps, nm] = await Promise.all([getPriceStatus(), getNameCache()]);
+        setPriceStatus(ps);
+        setNameMap(nm.byName || {});
+      } catch {}
+    };
+    fetchPrices();
+    const priceInterval = setInterval(fetchPrices, 10000);
+
+    return () => { clearInterval(interval); clearInterval(priceInterval); };
   }, []);
 
   const online = status?.online;
   const confirmOn = status?.confirm_running;
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    setRefreshResult(null);
+    try {
+      const result = await refreshMarketPrices();
+      if (result.status === 'ok') {
+        setRefreshResult({ ok: true, total: result.totalItems, duration: result.durationMs });
+      } else if (result.status === 'already_running') {
+        setRefreshResult({ ok: true, message: 'Stahování již probíhá...' });
+      } else {
+        setRefreshResult({ ok: false, error: result.error || 'Neznámá chyba' });
+      }
+    } catch (e) {
+      setRefreshResult({ ok: false, error: e.message });
+    }
+    setRefreshing(false);
+    try { setPriceStatus(await getPriceStatus()); } catch {}
+  };
 
   const recentAlerts = useMemo(() => {
     if (!alerts.length) return [];
@@ -89,6 +123,63 @@ export default function Dashboard() {
         />
       </div>
 
+      {priceStatus && (
+        <div className="card p-4">
+          <div className="flex items-center justify-between">
+            <h2 className="stat-label">Stav cenových API</h2>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full ${priceStatus.marketItems?.available ? 'bg-accent-green' : 'bg-yellow-500'}`} />
+                <span className="text-xs text-gray-300">Market katalog</span>
+                <span className="text-xs text-gray-500">{priceStatus.marketItems?.totalItems || 0} předmětů</span>
+                {priceStatus.marketItems?.lastUpdated && (
+                  <span className="text-xs text-gray-600">({new Date(priceStatus.marketItems.lastUpdated).toLocaleString('cs-CZ')})</span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full ${priceStatus.steamMarket.online ? 'bg-accent-green' : 'bg-red-500'}`} />
+                <span className="text-xs text-gray-300">Steam Market API</span>
+                <span className="text-xs text-gray-500">{priceStatus.steamMarket.latencyMs !== null ? `${priceStatus.steamMarket.latencyMs}ms` : '---'}</span>
+              </div>
+              <div className="text-xs text-gray-500">Cache: {priceStatus.cacheSize}</div>
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                  refreshing
+                    ? 'bg-dark-500 text-gray-400 cursor-not-allowed'
+                    : 'bg-accent-green/10 text-accent-green border border-accent-green/30 hover:bg-accent-green/20'
+                }`}
+              >
+                {refreshing ? (
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 border border-accent-green/30 border-t-accent-green rounded-full animate-spin" />
+                    Stahuji...
+                  </span>
+                ) : 'Aktualizovat katalog'}
+              </button>
+            </div>
+          </div>
+          {refreshResult && (
+            <p className={`text-xs mt-2 ${refreshResult.ok ? 'text-accent-green' : 'text-red-400'}`}>
+              {refreshResult.ok
+                ? `Aktualizováno: ${refreshResult.total?.toLocaleString('cs-CZ')} předmětů za ${refreshResult.duration}ms`
+                : `Chyba: ${refreshResult.error}`}
+            </p>
+          )}
+          {refreshing && (
+            <div className="mt-2">
+              <div className="w-full h-1.5 bg-dark-600 rounded-full overflow-hidden">
+                <div className="h-full bg-accent-green rounded-full animate-pulse" style={{ width: '100%' }} />
+              </div>
+            </div>
+          )}
+          {!priceStatus.marketItems?.available && !refreshing && (
+            <p className="text-xs text-yellow-400 mt-2">Katalog není k dispozici - stiskni "Aktualizovat katalog" pro stažení</p>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <div className="card p-5">
@@ -103,15 +194,23 @@ export default function Dashboard() {
             {recentAlerts.length === 0 && (
               <p className="text-sm text-gray-400 text-center py-8">Zatím žádné dary</p>
             )}
-            {recentAlerts.map((a, i) => (
+            {recentAlerts.map((a, i) => {
+              const steamId = nameMap[a.donor];
+              const profileUrl = steamId ? `https://steamcommunity.com/profiles/${steamId}` : null;
+              return (
               <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-dark-600/50 border border-dark-500 animate-slide-up flex-shrink-0" style={{ animationDelay: `${i * 50}ms` }}>
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium text-white truncate">{a.donor}</div>
+                  <div className="text-sm font-medium text-white truncate">
+                    {profileUrl ? (
+                      <a href={profileUrl} target="_blank" rel="noopener noreferrer" className="text-white hover:text-accent-green transition-colors">{a.donor}</a>
+                    ) : a.donor}
+                  </div>
                   <div className="text-xs text-gray-400">{a.date}</div>
                 </div>
                 <div className="text-sm font-bold text-accent-gold ml-3">${a.value?.toFixed(2) || '0.00'}</div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>

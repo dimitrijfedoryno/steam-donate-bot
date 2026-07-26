@@ -317,6 +317,135 @@ function startServer(port, testTriggerFile, alertQueueFile, botInstances) {
             // --- API: Bot instances status ---
             if (p === '/api/bots/status') return sendJson(res, botStatus.getAll());
 
+            // --- API: Name cache (steamid -> username) ---
+            if (p === '/api/names') {
+                const AccountBot = require('./account');
+                return sendJson(res, { byId: AccountBot.getNameCache(), byName: AccountBot.getReverseNameCache() });
+            }
+
+            // --- API: Inventory ---
+            if (p === '/api/inventory') {
+                if (req.method !== 'POST') return sendJson(res, { error: 'Method not allowed' }, 405);
+                return collectBody(req, async (data) => {
+                    const { account_index } = data;
+                    const bot = (botInstances || []).find(b => b.index === account_index);
+                    if (!bot) return sendJson(res, { error: 'Bot nenalezen' }, 404);
+                    // Získej steamID a cookies ze všech možných zdrojů
+                    const steamID = bot.manager.steamID || bot.client.steamID;
+                    if (!steamID) return sendJson(res, { error: 'Bot nemá steamID' }, 503);
+                    const sid64 = steamID.getSteamID64 ? steamID.getSteamID64() : String(steamID);
+                    // Sestav cookies z dostupných zdrojů
+                    let cookieStr = '';
+                    // 1) manager cookies (nejlepší — plná session)
+                    const mgrCookies = bot.manager._community?._cookies || [];
+                    if (mgrCookies.length > 0) {
+                        cookieStr = mgrCookies.map(c => `${c.name}=${c.value}`).join('; ');
+                    }
+                    // 2) bot._cookies (z webSession handleru)
+                    if (!cookieStr && bot._cookies && bot._cookies.length > 0) {
+                        cookieStr = bot._cookies.join('; ');
+                    }
+                    // 3) Fallback: sestav z access_token (refresh token = steamLoginSecure)
+                    if (!cookieStr && bot.client._logOnDetails?.access_token) {
+                        const accessToken = bot.client._logOnDetails.access_token;
+                        const sessionId = require('crypto').randomBytes(12).toString('hex');
+                        cookieStr = `steamLoginSecure=${accessToken}; sessionid=${sessionId}`;
+                    }
+                    if (!cookieStr) return sendJson(res, { error: 'Žádné cookies dostupné' }, 503);
+                    try {
+                        let allItems = [];
+                        let allDescriptions = [];
+                        let startAssetid = '';
+                        let totalCount = 0;
+                        let safety = 0;
+                        do {
+                            const url = `https://steamcommunity.com/inventory/${sid64}/730/2?count=5000&start_assetid=${startAssetid}`;
+                            const resp = await fetch(url, {
+                                headers: { 'Cookie': cookieStr, 'Referer': `https://steamcommunity.com/profiles/${sid64}/inventory` }
+                            });
+                            if (!resp.ok) {
+                                const text = await resp.text().catch(() => '');
+                                return sendJson(res, { error: `Steam HTTP ${resp.status}`, detail: text.substring(0, 500) }, 500);
+                            }
+                            const body = await resp.json();
+                            if (!body.success) return sendJson(res, { error: 'Steam API error', detail: body.Error || body.error || 'unknown' }, 500);
+                            totalCount = body.total_inventory_count || 0;
+                            if (body.assets) allItems = allItems.concat(body.assets);
+                            if (body.descriptions) allDescriptions = allDescriptions.concat(body.descriptions);
+                            if (body.more_items && body.last_assetid) {
+                                startAssetid = body.last_assetid;
+                            } else {
+                                break;
+                            }
+                            safety++;
+                        } while (safety < 50);
+                        const descMap = {};
+                        for (const d of allDescriptions) {
+                            descMap[d.classid + '_' + (d.instanceid || '0')] = d;
+                        }
+                        const items = allItems.map(asset => {
+                            const desc = descMap[asset.classid + '_' + (asset.instanceid || '0')] || {};
+                            const name = desc.market_hash_name || desc.name || 'Neznámý';
+                            const ownerDesc = (desc.owner_descriptions || []).map(d => d.value || '').join(' ');
+                            let trade_hold_until = null;
+                            const holdMatch = ownerDesc.match(/(?:Tradable|Tradeable)\s+After\s+(.+?)(?:\.|$)/i);
+                            if (holdMatch) {
+                                const parsed = new Date(holdMatch[1].trim());
+                                if (!isNaN(parsed.getTime()) && parsed > new Date()) {
+                                    trade_hold_until = parsed.toISOString();
+                                }
+                            }
+                            return {
+                                assetid: asset.assetid,
+                                name,
+                                market_hash_name: desc.market_hash_name || '',
+                                icon_url: desc.icon_url || '',
+                                icon_url_large: desc.icon_url_large || '',
+                                tradable: !!desc.tradable,
+                                marketable: !!desc.marketable,
+                                amount: parseInt(asset.amount) || 1,
+                                type: desc.type || '',
+                                rarity: (desc.tags || []).find(t => t.category === 'Rarity')?.name || '',
+                                price: (() => { try { return require('./prices').getItemPrice(desc.market_hash_name); } catch { return 0; } })(),
+                                trade_hold_until,
+                                cache_expiration: desc.cache_expiration || null,
+                                owner_descriptions: ownerDesc,
+                            };
+                        });
+                        sendJson(res, { items, total: totalCount, account_index });
+                    } catch (e) {
+                        sendJson(res, { error: e.message }, 500);
+                    }
+                });
+            }
+
+            // --- API: Price status ---
+            if (p === '/api/prices/status') {
+                const { getPriceStatus } = require('./prices');
+                return getPriceStatus().then(s => sendJson(res, s)).catch(() => sendJson(res, { steamMarket: { online: false }, cacheSize: 0 }));
+            }
+
+            // --- API: Refresh market items ---
+            if (p === '/api/prices/refresh') {
+                const { refreshMarketItems, getMarketStatus, getMarketProgress } = require('./prices');
+                if (req.method === 'GET') {
+                    const status = getMarketStatus();
+                    const progress = getMarketProgress();
+                    return sendJson(res, { ...status, progress });
+                }
+                if (req.method === 'POST') {
+                    if (getMarketProgress().running) {
+                        return sendJson(res, { status: 'already_running', ...getMarketProgress() });
+                    }
+                    const t = Date.now();
+                    refreshMarketItems()
+                        .then(data => sendJson(res, { status: 'ok', totalItems: data.totalItems, lastUpdated: data.lastUpdated, durationMs: Date.now() - t }))
+                        .catch(e => sendJson(res, { status: 'error', error: e.message }, 500));
+                    return;
+                }
+                return sendJson(res, { error: 'Method not allowed' }, 405);
+            }
+
             // --- API: Settings ---
             if (p === '/api/settings') {
                 const settingsMod = require('./settings');

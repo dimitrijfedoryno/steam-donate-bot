@@ -9,6 +9,7 @@ import Console from './components/Console';
 import TradeOffers from './components/TradeOffers';
 import AlertSettings from './components/AlertSettings';
 import Update from './components/Update';
+import Inventory from './components/Inventory';
 import DonationGoal from './components/DonationGoal';
 import Leaderboard from './components/Leaderboard';
 
@@ -21,7 +22,7 @@ function AppRoutes() {
     const handleKey = (e) => {
       if (e.ctrlKey && e.key >= '1' && e.key <= '9') {
         e.preventDefault();
-        const routes = ['/', '/history', '/statistics', '/alert', '/accounts', '/console', '/trades', '/goal', '/leaderboard'];
+        const routes = ['/', '/history', '/statistics', '/alert', '/accounts', '/console', '/trades', '/inventory', '/goal', '/leaderboard'];
         const idx = parseInt(e.key) - 1;
         if (routes[idx]) navigate(routes[idx]);
       }
@@ -62,6 +63,7 @@ function AppRoutes() {
       <Route path="/alert" element={<AlertSettings />} />
       <Route path="/console" element={<Console />} />
       <Route path="/trades" element={<TradeOffers />} />
+      <Route path="/inventory" element={<Inventory />} />
       <Route path="/live" element={<AlertSettings />} />
       <Route path="/alert-settings" element={<AlertSettings />} />
       <Route path="/goal" element={<DonationGoal />} />

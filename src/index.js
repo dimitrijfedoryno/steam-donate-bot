@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { startServer } = require('./server');
 const AccountBot = require('./account');
-const { getItemPrice } = require('./prices');
+const { getItemPrice, saveCache, startBackgroundRefresh } = require('./prices');
 const { recordOffer } = require('./stats');
 const alertQueue = require('./alertQueue');
 
@@ -132,11 +132,36 @@ function pollTestTrigger() {
 
 pollTestTrigger();
 
+// Ukládání cen každou hodinu
+setInterval(() => {
+    try {
+        const data = saveCache();
+        console.log(`[ceny] Uloženo ${Object.keys(data.items).length} cen do cache`);
+    } catch (e) {
+        console.error(`[ceny] Chyba při ukládání: ${e.message}`);
+    }
+}, 60 * 60 * 1000);
+
+// Denní aktualizace market katalogu (kontrola každou hodinu)
+const DAY_MS = 24 * 60 * 60 * 1000;
+function checkMarketRefresh() {
+    const { getMarketStatus } = require('./prices');
+    const status = getMarketStatus();
+    const age = status.lastUpdated ? Date.now() - new Date(status.lastUpdated).getTime() : Infinity;
+    if (age > DAY_MS && !status.running) {
+        console.log(`[market] Katalog starší než 24h, spouštím aktualizaci...`);
+        startBackgroundRefresh();
+    }
+}
+setTimeout(checkMarketRefresh, 30 * 1000);
+setInterval(checkMarketRefresh, 60 * 60 * 1000);
+
 // Status file pro menu + cleanup
 const STATUS_FILE = path.join(LOG_DIR, 'bot.running');
 fs.writeFileSync(STATUS_FILE, JSON.stringify({ online: true, started: new Date().toISOString() }), 'utf8');
 
 function cleanup() {
+    try { saveCache(); } catch {}
     try { fs.unlinkSync(STATUS_FILE); } catch {}
     try { httpServer.close(); } catch {}
 }

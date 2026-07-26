@@ -1,7 +1,16 @@
-import { useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { useMemo, useState } from 'react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
+
+const MONTHS = ['', 'leden', 'únor', 'březen', 'duben', 'květen', 'červen', 'červenec', 'srpen', 'září', 'říjen', 'listopad', 'prosinec'];
+
+function formatDate(str) {
+  const [day, month, year] = str.split('.');
+  return `${parseInt(day)}. ${MONTHS[parseInt(month)]} ${year}`;
+}
 
 export default function DonationChart({ data }) {
+  const [hoveredIndex, setHoveredIndex] = useState(null);
+
   const chartData = useMemo(() => {
     if (!data || !data.length) return [];
     const dayMap = {};
@@ -26,7 +35,11 @@ export default function DonationChart({ data }) {
 
   return (
     <ResponsiveContainer width="100%" height={220}>
-      <BarChart data={chartData} margin={{ top: 5, right: 5, left: -10, bottom: 5 }}>
+      <BarChart
+        data={chartData}
+        margin={{ top: 5, right: 5, left: -10, bottom: 5 }}
+        onMouseLeave={() => setHoveredIndex(null)}
+      >
         <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" vertical={false} />
         <XAxis
           dataKey="day"
@@ -42,6 +55,7 @@ export default function DonationChart({ data }) {
           tickFormatter={v => `$${v}`}
         />
         <Tooltip
+          cursor={{ fill: 'rgba(164, 208, 7, 0.06)' }}
           contentStyle={{
             background: '#111',
             border: '1px solid #333',
@@ -52,11 +66,19 @@ export default function DonationChart({ data }) {
           }}
           labelStyle={{ color: '#9ca3af', marginBottom: 4 }}
           formatter={(value) => [`$${value.toFixed(2)}`, 'Hodnota']}
-          labelFormatter={(label) => `Datum: ${label}`}
+          labelFormatter={(label) => formatDate(label)}
         />
-        <Bar dataKey="value" fill="#a4d007" radius={[4, 4, 0, 0]} maxBarSize={40}>
+        <Bar
+          dataKey="value"
+          radius={[4, 4, 0, 0]}
+          maxBarSize={40}
+          onMouseEnter={(_, index) => setHoveredIndex(index)}
+        >
           {chartData.map((_, i) => (
-            <rect key={i} fill="url(#barGradient)" />
+            <Cell
+              key={i}
+              fill={hoveredIndex === i ? '#c4f040' : 'url(#barGradient)'}
+            />
           ))}
         </Bar>
         <defs>

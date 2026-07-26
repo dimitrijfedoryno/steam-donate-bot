@@ -42,6 +42,17 @@ export function respondToTrade(offerId, action, accountIndex) {
 // Bots status
 export function getBotsStatus() { return fetchJson('/api/bots/status'); }
 
+// Name cache
+export function getNameCache() { return fetchJson('/api/names'); }
+
+// Inventory
+export function getInventory(account_index) { return fetchJson('/api/inventory', { method: 'POST', body: JSON.stringify({ account_index }) }); }
+
+// Price status
+export function getPriceStatus() { return fetchJson('/api/prices/status'); }
+export function getMarketStatus() { return fetchJson('/api/prices/refresh'); }
+export function refreshMarketPrices() { return fetchJson('/api/prices/refresh', { method: 'POST', body: '{}' }); }
+
 // Settings
 export function getSettings() { return fetchJson('/api/settings'); }
 export function setSettings(data) { return fetchJson('/api/settings', { method: 'PUT', body: JSON.stringify(data) }); }
