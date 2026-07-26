@@ -203,7 +203,13 @@ function startServer(port, testTriggerFile, alertQueueFile, botInstances) {
                                         revocation_code: response.revocation_code,
                                     });
                                 } else {
-                                    rej(new Error(response ? JSON.stringify(response) : '2FA selhalo'));
+                                    let msg = '2FA selhalo';
+                                    if (response) {
+                                        if (response.status === 2) msg = 'Účet nemá ověřené telefonní číslo. Přidej telefon na steamcommunity.com/edit/settings';
+                                        else if (response.status === 29) msg = '2FA už je aktivní';
+                                        else msg = JSON.stringify(response);
+                                    }
+                                    rej(new Error(msg));
                                 }
                             });
                         });
