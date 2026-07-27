@@ -156,7 +156,7 @@ function startServer(port, testTriggerFile, alertQueueFile, botInstances) {
     const LOG_DIR = path.join(ROOT, 'logs');
     const ADMIN_DIST = path.join(ROOT, 'admin', 'dist');
     const ALERT_QUEUE_FILE = alertQueueFile || path.join(LOG_DIR, 'alert_queue.json');
-    let confirmProcess = null;
+    let confirmProcesses = {};
 
     function sendFile(res, filePath, status = 200) {
         const ext = path.extname(filePath);
@@ -341,7 +341,8 @@ function startServer(port, testTriggerFile, alertQueueFile, botInstances) {
             if (p === '/api/status') {
                 const status = readJson(path.join(LOG_DIR, 'bot.running'), { online: false, started: null });
                 status.port = currentPort;
-                status.confirm_running = confirmProcess !== null && confirmProcess.exitCode === null;
+                const anyConfirmRunning = Object.values(confirmProcesses).some(p => p && p.exitCode === null);
+                status.confirm_running = anyConfirmRunning;
                 return sendJson(res, status);
             }
 
@@ -357,67 +358,16 @@ function startServer(port, testTriggerFile, alertQueueFile, botInstances) {
             // --- API: Inventory ---
             if (p === '/api/inventory') {
                 if (req.method !== 'POST') return sendJson(res, { error: 'Method not allowed' }, 405);
-                return collectBody(req, async (data) => {
+                return collectBody(req, (data) => {
                     const { account_index } = data;
                     const bot = (botInstances || []).find(b => b.index === account_index);
                     if (!bot) return sendJson(res, { error: 'Bot nenalezen' }, 404);
-                    // Získej steamID a cookies ze všech možných zdrojů
-                    const steamID = bot.manager.steamID || bot.client.steamID;
-                    if (!steamID) return sendJson(res, { error: 'Bot nemá steamID' }, 503);
-                    const sid64 = steamID.getSteamID64 ? steamID.getSteamID64() : String(steamID);
-                    // Sestav cookies z dostupných zdrojů
-                    let cookieStr = '';
-                    // 1) manager cookies (nejlepší — plná session)
-                    const mgrCookies = bot.manager._community?._cookies || [];
-                    if (mgrCookies.length > 0) {
-                        cookieStr = mgrCookies.map(c => `${c.name}=${c.value}`).join('; ');
-                    }
-                    // 2) bot._cookies (z webSession handleru)
-                    if (!cookieStr && bot._cookies && bot._cookies.length > 0) {
-                        cookieStr = bot._cookies.join('; ');
-                    }
-                    // 3) Fallback: sestav z access_token (refresh token = steamLoginSecure)
-                    if (!cookieStr && bot.client._logOnDetails?.access_token) {
-                        const accessToken = bot.client._logOnDetails.access_token;
-                        const sessionId = require('crypto').randomBytes(12).toString('hex');
-                        cookieStr = `steamLoginSecure=${accessToken}; sessionid=${sessionId}`;
-                    }
-                    if (!cookieStr) return sendJson(res, { error: 'Žádné cookies dostupné' }, 503);
-                    try {
-                        let allItems = [];
-                        let allDescriptions = [];
-                        let startAssetid = '';
-                        let totalCount = 0;
-                        let safety = 0;
-                        do {
-                            const url = `https://steamcommunity.com/inventory/${sid64}/730/2?count=5000&start_assetid=${startAssetid}`;
-                            const resp = await fetch(url, {
-                                headers: { 'Cookie': cookieStr, 'Referer': `https://steamcommunity.com/profiles/${sid64}/inventory` }
-                            });
-                            if (!resp.ok) {
-                                const text = await resp.text().catch(() => '');
-                                return sendJson(res, { error: `Steam HTTP ${resp.status}`, detail: text.substring(0, 500) }, 500);
-                            }
-                            const body = await resp.json();
-                            if (!body.success) return sendJson(res, { error: 'Steam API error', detail: body.Error || body.error || 'unknown' }, 500);
-                            totalCount = body.total_inventory_count || 0;
-                            if (body.assets) allItems = allItems.concat(body.assets);
-                            if (body.descriptions) allDescriptions = allDescriptions.concat(body.descriptions);
-                            if (body.more_items && body.last_assetid) {
-                                startAssetid = body.last_assetid;
-                            } else {
-                                break;
-                            }
-                            safety++;
-                        } while (safety < 50);
-                        const descMap = {};
-                        for (const d of allDescriptions) {
-                            descMap[d.classid + '_' + (d.instanceid || '0')] = d;
-                        }
-                        const items = allItems.map(asset => {
-                            const desc = descMap[asset.classid + '_' + (asset.instanceid || '0')] || {};
-                            const name = desc.market_hash_name || desc.name || 'Neznámý';
-                            const ownerDesc = (desc.owner_descriptions || []).map(d => d.value || '').join(' ');
+                    if (!bot.manager.steamID && !bot.client.steamID) return sendJson(res, { error: 'Bot nemá steamID' }, 503);
+
+                    bot.manager.getInventoryContents(730, 2, false, (err, inventory, totalCount) => {
+                        if (err) return sendJson(res, { error: err.message }, 500);
+                        const items = (inventory || []).map(item => {
+                            const ownerDesc = (item.owner_descriptions || []).map(d => d.value || '').join(' ');
                             let trade_hold_until = null;
                             const holdMatch = ownerDesc.match(/(?:Tradable|Tradeable)\s+After\s+(.+?)(?:\.|$)/i);
                             if (holdMatch) {
@@ -427,26 +377,24 @@ function startServer(port, testTriggerFile, alertQueueFile, botInstances) {
                                 }
                             }
                             return {
-                                assetid: asset.assetid,
-                                name,
-                                market_hash_name: desc.market_hash_name || '',
-                                icon_url: desc.icon_url || '',
-                                icon_url_large: desc.icon_url_large || '',
-                                tradable: !!desc.tradable,
-                                marketable: !!desc.marketable,
-                                amount: parseInt(asset.amount) || 1,
-                                type: desc.type || '',
-                                rarity: (desc.tags || []).find(t => t.category === 'Rarity')?.name || '',
-                                price: (() => { try { return require('./prices').getItemPrice(desc.market_hash_name); } catch { return 0; } })(),
+                                assetid: item.assetid,
+                                name: item.market_hash_name || item.name || 'Neznámý',
+                                market_hash_name: item.market_hash_name || '',
+                                icon_url: item.icon_url || '',
+                                icon_url_large: item.icon_url_large || '',
+                                tradable: !!item.tradable,
+                                marketable: !!item.marketable,
+                                amount: parseInt(item.amount) || 1,
+                                type: item.type || '',
+                                rarity: (item.tags || []).find(t => t.category === 'Rarity')?.name || '',
+                                price: (() => { try { return require('./prices').getItemPrice(item.market_hash_name); } catch { return 0; } })(),
                                 trade_hold_until,
-                                cache_expiration: desc.cache_expiration || null,
+                                cache_expiration: item.cache_expiration || null,
                                 owner_descriptions: ownerDesc,
                             };
                         });
-                        sendJson(res, { items, total: totalCount, account_index });
-                    } catch (e) {
-                        sendJson(res, { error: e.message }, 500);
-                    }
+                        sendJson(res, { items, total: totalCount || items.length, account_index });
+                    });
                 });
             }
 
@@ -624,6 +572,14 @@ function startServer(port, testTriggerFile, alertQueueFile, botInstances) {
                         try {
                             updateAccount(data);
                             console.log(`Účet upraven: ${data.username} (index ${data.index})`);
+                            // Aktualizovat botův config a Rich Presence
+                            if (botInstances && data.play_cs2 !== undefined) {
+                                const bot = botInstances.find(b => b.index === data.index);
+                                if (bot) {
+                                    bot.config = { ...bot.config, ...data }; // aktualizovat config v paměti
+                                    if (bot.setRichPresence) bot.setRichPresence();
+                                }
+                            }
                             return sendJson(res, data);
                         } catch (e) { return sendJson(res, { error: e.message }, 500); }
                     });
@@ -643,21 +599,45 @@ function startServer(port, testTriggerFile, alertQueueFile, botInstances) {
 
             // --- API: Control - Confirm ---
             if (p === '/api/control/confirm') {
-                if (req.method === 'GET') return sendJson(res, { running: confirmProcess !== null && confirmProcess.exitCode === null });
+                if (req.method === 'GET') {
+                    const statuses = {};
+                    for (const [idx, proc] of Object.entries(confirmProcesses)) {
+                        statuses[idx] = proc && proc.exitCode === null;
+                    }
+                    return sendJson(res, { statuses });
+                }
                 if (req.method === 'POST') {
                     return collectBody(req, (data) => {
-                        if (data.action === 'start' && (!confirmProcess || confirmProcess.exitCode !== null)) {
-                            confirmProcess = spawn('node', ['src/confirm.js'], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'], shell: true });
-                            confirmProcess.stdout.on('data', d => console.log('[confirm] ' + d.toString().trim()));
-                            confirmProcess.stderr.on('data', d => console.error('[confirm] ' + d.toString().trim()));
-                            confirmProcess.on('close', () => { confirmProcess = null; });
-                            return sendJson(res, { status: 'ok', running: true });
+                        const accountIndex = data.account_index != null ? String(data.account_index) : null;
+                        if (data.action === 'start' && accountIndex) {
+                            const existing = confirmProcesses[accountIndex];
+                            if (existing && existing.exitCode === null) {
+                                return sendJson(res, { status: 'ok', running: true, account_index: accountIndex });
+                            }
+                            const proc = spawn('node', ['src/confirm.js', accountIndex], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'], shell: true });
+                            proc.stdout.on('data', d => console.log(`[confirm:${accountIndex}] ` + d.toString().trim()));
+                            proc.stderr.on('data', d => console.error(`[confirm:${accountIndex}] ` + d.toString().trim()));
+                            proc.on('close', () => { delete confirmProcesses[accountIndex]; });
+                            confirmProcesses[accountIndex] = proc;
+                            return sendJson(res, { status: 'ok', running: true, account_index: accountIndex });
                         }
-                        if (data.action === 'stop' && confirmProcess && confirmProcess.exitCode === null) {
-                            confirmProcess.kill(); confirmProcess = null;
+                        if (data.action === 'stop' && accountIndex) {
+                            const proc = confirmProcesses[accountIndex];
+                            if (proc && proc.exitCode === null) {
+                                proc.kill();
+                                delete confirmProcesses[accountIndex];
+                                return sendJson(res, { status: 'ok', running: false, account_index: accountIndex });
+                            }
+                            return sendJson(res, { status: 'ok', running: false, account_index: accountIndex });
+                        }
+                        if (data.action === 'stop_all') {
+                            for (const [idx, proc] of Object.entries(confirmProcesses)) {
+                                if (proc && proc.exitCode === null) proc.kill();
+                            }
+                            confirmProcesses = {};
                             return sendJson(res, { status: 'ok', running: false });
                         }
-                        return sendJson(res, { status: 'ok', running: false });
+                        return sendJson(res, { error: 'Invalid action' }, 400);
                     });
                 }
                 return sendJson(res, { error: 'Method not allowed' }, 405);

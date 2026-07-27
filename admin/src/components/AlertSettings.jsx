@@ -220,7 +220,9 @@ export default function AlertSettings() {
             </button>
           </div>
         </div>
+      </div>
 
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         <div className="card p-5">
           <h2 className="stat-label mb-3">Minimální hodnota daru</h2>
           <div className="flex items-center gap-3">
@@ -248,71 +250,71 @@ export default function AlertSettings() {
             {saving ? 'Ukládám...' : 'Uložit délku'}
           </button>
         </div>
+
+        <div className="card p-5 space-y-3">
+          <h2 className="stat-label">Font</h2>
+          <select value={settings.alert_font_family}
+            onChange={e => setSettingsState(s => ({ ...s, alert_font_family: e.target.value }))}
+            className="w-full bg-dark-600 border border-dark-500 rounded-lg px-3 py-2 text-sm text-white">
+            <option value="'Arial Black', sans-serif">Arial Black</option>
+            <option value="'Impact', sans-serif">Impact</option>
+            <option value="'Segoe UI', sans-serif">Segoe UI</option>
+            <option value="'Roboto', sans-serif">Roboto</option>
+            <option value="'Montserrat', sans-serif">Montserrat</option>
+            <option value="'Oswald', sans-serif">Oswald</option>
+          </select>
+          <button onClick={() => save({ alert_font_family: settings.alert_font_family })}
+            disabled={saving} className="btn-primary text-sm">
+            {saving ? 'Ukládám...' : 'Uložit font'}
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="space-y-6">
-          <div className="card p-5 space-y-4">
-            <h2 className="stat-label">Barvy</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs text-gray-400 block mb-1.5">Akcentní (#a4d007)</label>
-                <div className="flex gap-2">
-                  <input type="color" value={settings.alert_primary_color}
-                    onChange={e => setSettingsState(s => ({ ...s, alert_primary_color: e.target.value }))}
-                    className="w-10 h-10 rounded cursor-pointer bg-transparent border border-dark-500" />
-                  <input type="text" value={settings.alert_primary_color}
-                    onChange={e => setSettingsState(s => ({ ...s, alert_primary_color: e.target.value }))}
-                    className="flex-1 bg-dark-600 border border-dark-500 rounded-lg px-3 py-2 text-sm text-white font-mono" />
-                </div>
-              </div>
-              <div>
-                <label className="text-xs text-gray-400 block mb-1.5">Zlatá (#ffcc00)</label>
-                <div className="flex gap-2">
-                  <input type="color" value={settings.alert_secondary_color}
-                    onChange={e => setSettingsState(s => ({ ...s, alert_secondary_color: e.target.value }))}
-                    className="w-10 h-10 rounded cursor-pointer bg-transparent border border-dark-500" />
-                  <input type="text" value={settings.alert_secondary_color}
-                    onChange={e => setSettingsState(s => ({ ...s, alert_secondary_color: e.target.value }))}
-                    className="flex-1 bg-dark-600 border border-dark-500 rounded-lg px-3 py-2 text-sm text-white font-mono" />
-                </div>
+        <div className="card p-5 space-y-4">
+          <h2 className="stat-label">Barvy</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs text-gray-400 block mb-1.5">Akcentní (#a4d007)</label>
+              <div className="flex gap-2">
+                <input type="color" value={settings.alert_primary_color}
+                  onChange={e => setSettingsState(s => ({ ...s, alert_primary_color: e.target.value }))}
+                  className="w-10 h-10 rounded cursor-pointer bg-transparent border border-dark-500" />
+                <input type="text" value={settings.alert_primary_color}
+                  onChange={e => setSettingsState(s => ({ ...s, alert_primary_color: e.target.value }))}
+                  className="flex-1 bg-dark-600 border border-dark-500 rounded-lg px-3 py-2 text-sm text-white font-mono" />
               </div>
             </div>
-            <button onClick={() => save({ alert_primary_color: settings.alert_primary_color, alert_secondary_color: settings.alert_secondary_color })}
-              disabled={saving} className="btn-primary text-sm">
-              {saving ? 'Ukládám...' : 'Uložit barvy'}
-            </button>
+            <div>
+              <label className="text-xs text-gray-400 block mb-1.5">Zlatá (#ffcc00)</label>
+              <div className="flex gap-2">
+                <input type="color" value={settings.alert_secondary_color}
+                  onChange={e => setSettingsState(s => ({ ...s, alert_secondary_color: e.target.value }))}
+                  className="w-10 h-10 rounded cursor-pointer bg-transparent border border-dark-500" />
+                <input type="text" value={settings.alert_secondary_color}
+                  onChange={e => setSettingsState(s => ({ ...s, alert_secondary_color: e.target.value }))}
+                  className="flex-1 bg-dark-600 border border-dark-500 rounded-lg px-3 py-2 text-sm text-white font-mono" />
+              </div>
+            </div>
           </div>
+          <button onClick={() => save({ alert_primary_color: settings.alert_primary_color, alert_secondary_color: settings.alert_secondary_color })}
+            disabled={saving} className="btn-primary text-sm">
+            {saving ? 'Ukládám...' : 'Uložit barvy'}
+          </button>
+        </div>
 
-          <div className="card p-5 space-y-4">
-            <h2 className="stat-label">Zvuk</h2>
-            <div className="text-sm text-gray-400 mb-2">Aktuální: <span className="text-white font-mono">{settings.alert_sound}</span></div>
-            <label className="btn-primary text-sm inline-block cursor-pointer">
-              Nahrát vlastní MP3
-              <input type="file" accept=".mp3,.wav,.ogg" onChange={handleUpload} className="hidden" />
-            </label>
-          </div>
+        <div className="card p-5 space-y-3">
+          <h2 className="stat-label">Zvuk</h2>
+          <div className="text-sm text-gray-400">Aktuální: <span className="text-white font-mono">{settings.alert_sound}</span></div>
+          <label className="btn-primary text-sm inline-block cursor-pointer">
+            Nahrát vlastní MP3
+            <input type="file" accept=".mp3,.wav,.ogg" onChange={handleUpload} className="hidden" />
+          </label>
+        </div>
+      </div>
 
-          <div className="card p-5 space-y-4">
-            <h2 className="stat-label">Font</h2>
-            <select value={settings.alert_font_family}
-              onChange={e => setSettingsState(s => ({ ...s, alert_font_family: e.target.value }))}
-              className="w-full bg-dark-600 border border-dark-500 rounded-lg px-3 py-2 text-sm text-white">
-              <option value="'Arial Black', sans-serif">Arial Black</option>
-              <option value="'Impact', sans-serif">Impact</option>
-              <option value="'Segoe UI', sans-serif">Segoe UI</option>
-              <option value="'Roboto', sans-serif">Roboto</option>
-              <option value="'Montserrat', sans-serif">Montserrat</option>
-              <option value="'Oswald', sans-serif">Oswald</option>
-            </select>
-            <button onClick={() => save({ alert_font_family: settings.alert_font_family })}
-              disabled={saving} className="btn-primary text-sm">
-              {saving ? 'Ukládám...' : 'Uložit font'}
-            </button>
-</div>
-
-          <AlertPreview settings={settings} />
-
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
           <div className="card p-5">
             <div className="flex items-center justify-between mb-3">
               <h2 className="stat-label">Live náhled</h2>
@@ -334,7 +336,7 @@ export default function AlertSettings() {
                 Zobrazit poslední
               </button>
             </div>
-            <div className="relative bg-dark-800 rounded-xl overflow-hidden min-h-[200px]">
+            <div className="relative bg-dark-800 rounded-xl overflow-hidden min-h-[240px]">
               <div className={`absolute inset-0 transition-all duration-1000 ${show ? 'opacity-100' : 'opacity-0'}`}>
                 <div className="absolute inset-0 bg-gradient-to-br from-accent-green/5 via-transparent to-transparent" />
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-accent-green/5 rounded-full blur-3xl" />
@@ -359,10 +361,14 @@ export default function AlertSettings() {
               )}
             </div>
           </div>
+        </div>
 
-          <div className="card p-5">
-            <h2 className="stat-label mb-4">Historie alertů (tato relace)</h2>
-            <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+        <div className="flex flex-col gap-6">
+          <AlertPreview settings={settings} />
+
+          <div className="card p-5 flex-1 flex flex-col">
+            <h2 className="stat-label mb-3">Historie alertů</h2>
+            <div className="space-y-2 flex-1 overflow-y-auto max-h-[280px] pr-1">
               {history.length === 0 && <p className="text-sm text-gray-400 text-center py-8">Zatím žádné alerty</p>}
               {history.map((a) => (
                 <div key={a.id} className="flex items-center justify-between p-3 rounded-lg bg-dark-600/50 border border-dark-500">

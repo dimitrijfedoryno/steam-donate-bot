@@ -3,14 +3,14 @@ import { getStatus, getConfirmStatus, startConfirm, stopConfirm, restartBot, get
 
 export default function Accounts() {
   const [status, setStatus] = useState(null);
-  const [confirmRunning, setConfirmRunning] = useState(false);
+  const [confirmRunning, setConfirmRunning] = useState({});
   const [twoFACodes, setTwoFACodes] = useState({});
   const [twoFAError, setTwoFAError] = useState(null);
   const [copied, setCopied] = useState(null);
   const [countdown, setCountdown] = useState(30);
   const [restarting, setRestarting] = useState(false);
   const [testMsg, setTestMsg] = useState(null);
-  const [confirmLoading, setConfirmLoading] = useState(false);
+  const [confirmLoading, setConfirmLoading] = useState(null);
 
   // Account management
   const [accounts, setAccounts] = useState([]);
@@ -29,7 +29,7 @@ export default function Accounts() {
     try {
       const [s, c] = await Promise.all([getStatus(), getConfirmStatus()]);
       setStatus(s);
-      setConfirmRunning(c.running);
+      setConfirmRunning(c.statuses || {});
     } catch {}
   };
 
@@ -73,13 +73,18 @@ export default function Accounts() {
   const online = status?.online;
 
   // --- Controls ---
-  const handleConfirmToggle = async () => {
-    setConfirmLoading(true);
+  const handleConfirmToggle = async (accountIndex) => {
+    setConfirmLoading(accountIndex);
     try {
-      if (confirmRunning) { await stopConfirm(); setConfirmRunning(false); }
-      else { const r = await startConfirm(); setConfirmRunning(r.running); }
+      if (confirmRunning[accountIndex]) {
+        await stopConfirm(accountIndex);
+        setConfirmRunning(prev => ({ ...prev, [accountIndex]: false }));
+      } else {
+        const r = await startConfirm(accountIndex);
+        setConfirmRunning(prev => ({ ...prev, [accountIndex]: r.running }));
+      }
     } catch {}
-    setConfirmLoading(false);
+    setConfirmLoading(null);
   };
 
   const handleRestart = async () => {
@@ -222,13 +227,11 @@ const openEdit = (acc) => {
       {/* Bot Controls */}
       <div className="card p-5">
         <h2 className="stat-label mb-4">Ovládání bota</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <ControlButton label="Restartovat" desc="Ukončí a restartuje proces" color="yellow" onClick={handleRestart} loading={restarting} disabled={!online}
             icon={<svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>} />
           <ControlButton label="Test dar" desc="Simuluje příchozí donation" color="green" onClick={handleTest} disabled={!online}
             icon={<svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg>} />
-          <ControlButton label={confirmRunning ? 'Zastavit Confirm' : 'Spustit Confirm'} desc={confirmRunning ? 'Vypne auto-potvrzování' : 'Zapne auto-potvrzování'} color={confirmRunning ? 'red' : 'blue'} onClick={handleConfirmToggle} loading={confirmLoading}
-            icon={<svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polygon points="5 3 19 12 5 21 5 3" /></svg>} />
         </div>
         {testMsg && <div className="mt-4 p-3 rounded-lg bg-accent-green/10 border border-accent-green/30 text-accent-green text-sm animate-fade-in">{testMsg}</div>}
         {restarting && <div className="mt-4 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 text-sm animate-fade-in flex items-center gap-2"><div className="w-4 h-4 border-2 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" />Restartuji bota...</div>}
@@ -272,6 +275,22 @@ const openEdit = (acc) => {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
+                      {acc.shared_secret && (
+                        <button onClick={() => handleConfirmToggle(acc.index)}
+                          disabled={confirmLoading === acc.index}
+                          className={`p-2 rounded-lg transition-colors ${confirmRunning[acc.index] ? 'hover:bg-red-500/20 text-blue-400 hover:text-red-400' : 'hover:bg-blue-500/20 text-gray-400 hover:text-blue-400'}`}
+                          title={confirmRunning[acc.index] ? 'Zastavit confirm' : 'Spustit confirm'}>
+                          {confirmLoading === acc.index ? (
+                            <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                              {confirmRunning[acc.index]
+                                ? <><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></>
+                                : <polygon points="5 3 19 12 5 21 5 3" />}
+                            </svg>
+                          )}
+                        </button>
+                      )}
                       {!acc.shared_secret && (
                         <button onClick={() => handleSetupExisting(acc)}
                           className="p-2 rounded-lg hover:bg-purple-500/20 text-gray-400 hover:text-purple-400 transition-colors" title="Nastavit 2FA">
@@ -319,6 +338,43 @@ const openEdit = (acc) => {
                       </div>
                     </div>
                   ) : null}
+                  {/* Confirm status */}
+                  {acc.shared_secret && (
+                    <div className="px-4 pb-2 pt-0">
+                      <div className={`flex items-center justify-between p-3 rounded-lg border ${
+                        confirmRunning[acc.index]
+                          ? 'bg-blue-500/10 border-blue-500/30'
+                          : 'bg-dark-700/50 border-dark-400'
+                      }`}>
+                        <div className="flex items-center gap-2">
+                          <span className={`w-2 h-2 rounded-full ${
+                            confirmRunning[acc.index] ? 'bg-blue-400 animate-pulse-slow' : 'bg-gray-500'
+                          }`} />
+                          <span className="text-[10px] text-gray-400 uppercase tracking-wider">Confirm</span>
+                          <span className={`text-xs font-medium ${
+                            confirmRunning[acc.index] ? 'text-blue-400' : 'text-gray-500'
+                          }`}>
+                            {confirmRunning[acc.index] ? 'Aktivní' : 'Vypnutý'}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => handleConfirmToggle(acc.index)}
+                          disabled={confirmLoading === acc.index}
+                          className={`px-3 py-1.5 rounded-md text-[10px] font-medium transition-all border ${
+                            confirmRunning[acc.index]
+                              ? 'bg-red-500/20 border-red-500/30 text-red-400 hover:bg-red-500/30'
+                              : 'bg-blue-500/20 border-blue-500/30 text-blue-400 hover:bg-blue-500/30'
+                          } disabled:opacity-50`}
+                        >
+                          {confirmLoading === acc.index ? (
+                            <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            confirmRunning[acc.index] ? 'Zastavit' : 'Spustit'
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   {/* Progress bar */}
                   {acc.shared_secret && codeData && (
                     <div className="h-1 bg-dark-500">
@@ -337,7 +393,7 @@ const openEdit = (acc) => {
         <h2 className="stat-label mb-4">Konfigurace</h2>
         <div className="space-y-2 text-sm">
           <ConfigRow label="HTTP port" value={status?.port || '3000'} />
-          <ConfigRow label="Confirm service" value={confirmRunning ? 'Aktivní' : 'Vypnutý'} />
+          <ConfigRow label="Confirm service" value={Object.values(confirmRunning).some(v => v) ? 'Aktivní' : 'Vypnutý'} />
           <ConfigRow label="Poslední spuštění" value={status?.started ? new Date(status.started).toLocaleString('cs-CZ') : '---'} />
           <ConfigRow label="Počet účtů" value={String(accounts.length)} />
         </div>
@@ -404,6 +460,41 @@ function ConfigRow({ label, value }) {
   );
 }
 
+function SecretField({ label, value, onChange, placeholder }) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div>
+      <label className="block text-xs font-medium text-gray-400 mb-1">{label}</label>
+      <div className="relative">
+        <input
+          type={visible ? 'text' : 'password'}
+          value={value}
+          onChange={onChange}
+          className="input-field font-mono text-xs pr-10 w-full"
+          placeholder={placeholder}
+          autoComplete="off"
+        />
+        <button type="button" onClick={() => setVisible(v => !v)}
+          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-gray-500 hover:text-gray-300 hover:bg-dark-500 transition-colors"
+          tabIndex={-1}>
+          {visible ? (
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+              <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+              <line x1="1" y1="1" x2="23" y2="23" />
+            </svg>
+          ) : (
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ModalContent({ mode, editAcc, formData, setFormData, saving, handleSave, closeSetupModal, handleAddWith2FA, setupData, guardCode, setGuardCode, handleGuardSubmit, setupState, onRetry }) {
   const h = (title) => (
     <div className="flex items-center justify-between mb-5">
@@ -436,9 +527,9 @@ function ModalContent({ mode, editAcc, formData, setFormData, saving, handleSave
         </div>
         <div className="border-t border-dark-500 pt-4 mt-2">
           <p className="text-xs text-gray-400 mb-3">Máte 2FA klíče (ze Steam Desktop Authenticator)?</p>
-          {fi('Shared secret', <input type="text" value={formData.shared_secret} onChange={e => setFormData(f => ({ ...f, shared_secret: e.target.value }))} className="input-field font-mono text-xs" placeholder="shared_secret" />)}
-          {fi('Identity secret', <input type="text" value={formData.identity_secret} onChange={e => setFormData(f => ({ ...f, identity_secret: e.target.value }))} className="input-field font-mono text-xs" placeholder="identity_secret" />)}
-          {fi('Revocation code (volitelné)', <input type="text" value={formData.revocation_code} onChange={e => setFormData(f => ({ ...f, revocation_code: e.target.value }))} className="input-field font-mono text-xs" placeholder="revocation_code" />)}
+          <SecretField label="Shared secret" value={formData.shared_secret} onChange={e => setFormData(f => ({ ...f, shared_secret: e.target.value }))} placeholder="shared_secret" />
+          <div className="mt-3"><SecretField label="Identity secret" value={formData.identity_secret} onChange={e => setFormData(f => ({ ...f, identity_secret: e.target.value }))} placeholder="identity_secret" /></div>
+          <div className="mt-3"><SecretField label="Revocation code (volitelné)" value={formData.revocation_code} onChange={e => setFormData(f => ({ ...f, revocation_code: e.target.value }))} placeholder="revocation_code" /></div>
         </div>
         <button onClick={handleSave} disabled={saving || !formData.username} className="w-full btn-primary py-2.5 flex items-center justify-center gap-2 disabled:opacity-40">
           {saving ? 'Ukládám...' : 'Přidat účet'}
@@ -464,9 +555,9 @@ function ModalContent({ mode, editAcc, formData, setFormData, saving, handleSave
         </div>
         <div className="border-t border-dark-500 pt-4 mt-2">
           <p className="text-xs text-gray-400 mb-3">Máte 2FA klíče (ze Steam Desktop Authenticator)?</p>
-          {fi('Shared secret', <input type="text" value={formData.shared_secret} onChange={e => setFormData(f => ({ ...f, shared_secret: e.target.value }))} className="input-field font-mono text-xs" placeholder="shared_secret" />)}
-          {fi('Identity secret', <input type="text" value={formData.identity_secret} onChange={e => setFormData(f => ({ ...f, identity_secret: e.target.value }))} className="input-field font-mono text-xs" placeholder="identity_secret" />)}
-          {fi('Revocation code (volitelné)', <input type="text" value={formData.revocation_code} onChange={e => setFormData(f => ({ ...f, revocation_code: e.target.value }))} className="input-field font-mono text-xs" placeholder="revocation_code" />)}
+          <SecretField label="Shared secret" value={formData.shared_secret} onChange={e => setFormData(f => ({ ...f, shared_secret: e.target.value }))} placeholder="shared_secret" />
+          <div className="mt-3"><SecretField label="Identity secret" value={formData.identity_secret} onChange={e => setFormData(f => ({ ...f, identity_secret: e.target.value }))} placeholder="identity_secret" /></div>
+          <div className="mt-3"><SecretField label="Revocation code (volitelné)" value={formData.revocation_code} onChange={e => setFormData(f => ({ ...f, revocation_code: e.target.value }))} placeholder="revocation_code" /></div>
         </div>
         <div className="flex gap-3 pt-2">
           <button type="button" onClick={closeSetupModal} className="flex-1 px-4 py-2 rounded-lg border border-dark-400 text-gray-300 text-sm font-medium hover:bg-dark-600 transition-colors">Zrušit</button>

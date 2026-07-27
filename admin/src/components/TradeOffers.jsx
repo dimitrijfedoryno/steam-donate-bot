@@ -147,6 +147,9 @@ function TradeCard({ trade, nameMap, acting, onAction }) {
             trade.state === 'auto-accepting' ? 'badge-green' :
             'badge-yellow'
           }`}>{STATE_LABELS[trade.state] || trade.state}</span>
+          {trade.account_name && (
+            <span className="badge text-[10px] bg-blue-500/20 text-blue-400 border border-blue-500/30">{trade.account_name}</span>
+          )}
         </div>
         <div className="flex items-center gap-2 text-xs text-gray-400">
           <span>od {steamProfileUrl ? (

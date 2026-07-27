@@ -18,8 +18,8 @@ export function getStatus() { return fetchJson('/api/status'); }
 export function getAlert() { return fetchJson('/api/alert'); }
 export function triggerTestDonation() { return fetchJson('/api/test-offer'); }
 export function getConfirmStatus() { return fetchJson('/api/control/confirm'); }
-export function startConfirm() { return fetchJson('/api/control/confirm', { method: 'POST', body: JSON.stringify({ action: 'start' }) }); }
-export function stopConfirm() { return fetchJson('/api/control/confirm', { method: 'POST', body: JSON.stringify({ action: 'stop' }) }); }
+export function startConfirm(accountIndex) { return fetchJson('/api/control/confirm', { method: 'POST', body: JSON.stringify({ action: 'start', account_index: accountIndex }) }); }
+export function stopConfirm(accountIndex) { return fetchJson('/api/control/confirm', { method: 'POST', body: JSON.stringify({ action: 'stop', account_index: accountIndex }) }); }
 export function restartBot() { return fetchJson('/api/control/bot-restart', { method: 'POST', body: '{}' }); }
 export function get2FACodes() { return fetchJson('/api/control/2fa'); }
 export function setup2FA(data) { return fetchJson('/api/control/2fa/setup', { method: 'POST', body: JSON.stringify(data) }); }
