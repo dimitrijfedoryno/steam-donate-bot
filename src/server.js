@@ -825,7 +825,7 @@ function startServer(port, testTriggerFile, alertQueueFile, botInstances) {
                 return;
             }
 
-            if (p === '/') p = '/alert.html';
+            if (p === '/') p = '/landing.html';
             const filePath = path.join(ROOT, p);
             if (!filePath.startsWith(ROOT)) { res.writeHead(403); res.end('Forbidden'); return; }
             sendFile(res, filePath);
@@ -841,9 +841,9 @@ function startServer(port, testTriggerFile, alertQueueFile, botInstances) {
         server.listen(currentPort, () => {
             console.log(`\n=== HTTP Server ===`);
             console.log(`Port: ${currentPort}`);
-            console.log(`OBS: http://localhost:${currentPort}/alert.html`);
-            console.log(`Admin: http://localhost:${currentPort}/admin`);
-            console.log(`Test: http://localhost:${currentPort}/test-offer`);
+                console.log(`Landing: http://localhost:${currentPort}/`);
+                console.log(`OBS: http://localhost:${currentPort}/alert.html`);
+                console.log(`Admin: http://localhost:${currentPort}/admin`);
             console.log(`===================\n`);
         });
 

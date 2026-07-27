@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Steam Stream Donate Bot</title>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+:root{
+  --bg:#0a0a0f;--bg2:#12121a;--card:#1a1a2e;--card2:#16213e;
+  --accent:#6c5ce7;--accent2:#a29bfe;--accent3:#00cec9;--accent4:#fd79a8;
+  --text:#e2e8f0;--text2:#94a3b8;--glow:rgba(108,92,231,.35);
+}
+html{scroll-behavior:smooth;overflow-x:hidden}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden}
+
+/* ── Canvas particles ── */
+#particles{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none}
+
+/* ── Parallax layers ── */
+.parallax-layer{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0}
+.parallax-layer img,.parallax-layer .orb{position:absolute;border-radius:50%;filter:blur(80px);opacity:.18}
+
+/* ── Sections ── */
+section{position:relative;z-index:1}
+
+/* ── Hero ── */
+.hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2rem;position:relative}
+.hero::after{content:'';position:absolute;bottom:0;left:0;width:100%;height:200px;background:linear-gradient(to top,var(--bg),transparent);pointer-events:none}
+.hero-badge{display:inline-flex;align-items:center;gap:.5rem;background:rgba(108,92,231,.12);border:1px solid rgba(108,92,231,.25);border-radius:999px;padding:.45rem 1.2rem;font-size:.8rem;font-weight:500;color:var(--accent2);margin-bottom:1.5rem;animation:fadeUp .8s ease both}
+.hero-badge .dot{width:7px;height:7px;border-radius:50%;background:var(--accent3);animation:pulse-dot 2s infinite}
+@keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+
+.hero h1{font-size:clamp(2.4rem,6vw,4.8rem);font-weight:900;line-height:1.08;letter-spacing:-.03em;margin-bottom:1rem;animation:fadeUp .8s .1s ease both}
+.hero h1 .gradient{background:linear-gradient(135deg,var(--accent),var(--accent3),var(--accent4));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero p{font-size:clamp(1rem,2vw,1.25rem);color:var(--text2);max-width:600px;line-height:1.7;margin-bottom:2.5rem;animation:fadeUp .8s .2s ease both}
+
+.hero-buttons{display:flex;gap:1rem;flex-wrap:wrap;justify-content:center;animation:fadeUp .8s .35s ease both}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;gap:.6rem;padding:.85rem 2rem;border-radius:14px;font-size:1rem;font-weight:600;text-decoration:none;transition:all .3s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden;cursor:pointer;border:none}
+.btn::before{content:'';position:absolute;inset:0;border-radius:14px;opacity:0;transition:opacity .3s}
+.btn:hover::before{opacity:1}
+.btn-primary{background:linear-gradient(135deg,var(--accent),#7c3aed);color:#fff;box-shadow:0 4px 25px var(--glow)}
+.btn-primary::before{background:linear-gradient(135deg,#7c3aed,var(--accent))}
+.btn-primary:hover{transform:translateY(-3px);box-shadow:0 8px 40px var(--glow)}
+.btn-primary:active{transform:translateY(-1px)}
+
+.btn-outline{background:rgba(255,255,255,.04);color:var(--text);border:1px solid rgba(255,255,255,.1)}
+.btn-outline::before{background:rgba(255,255,255,.06)}
+.btn-outline:hover{transform:translateY(-3px);border-color:rgba(255,255,255,.2)}
+
+.btn svg{width:20px;height:20px}
+
+/* ── Scroll indicator ── */
+.scroll-hint{position:absolute;bottom:3rem;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:.5rem;color:var(--text2);font-size:.75rem;animation:fadeUp .8s .5s ease both}
+.scroll-hint .mouse{width:24px;height:38px;border:2px solid rgba(255,255,255,.2);border-radius:12px;position:relative}
+.scroll-hint .mouse::after{content:'';position:absolute;top:6px;left:50%;transform:translateX(-50%);width:3px;height:8px;background:var(--accent2);border-radius:3px;animation:scroll-wheel 2s infinite}
+@keyframes scroll-wheel{0%{opacity:1;transform:translateX(-50%) translateY(0)}100%{opacity:0;transform:translateX(-50%) translateY(12px)}}
+
+/* ── Features ── */
+.features{padding:6rem 2rem;max-width:1200px;margin:0 auto}
+.features-title{text-align:center;margin-bottom:4rem}
+.features-title h2{font-size:clamp(1.8rem,4vw,2.8rem);font-weight:800;margin-bottom:.75rem}
+.features-title p{color:var(--text2);font-size:1.1rem;max-width:500px;margin:0 auto}
+
+.features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem}
+
+.feature-card{background:linear-gradient(145deg,rgba(26,26,46,.7),rgba(22,33,62,.5));border:1px solid rgba(255,255,255,.06);border-radius:20px;padding:2rem;transition:all .4s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden}
+.feature-card::before{content:'';position:absolute;top:0;left:0;width:100%;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:0;transition:opacity .4s}
+.feature-card:hover{transform:translateY(-6px);border-color:rgba(108,92,231,.3);box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.feature-card:hover::before{opacity:1}
+
+.feature-icon{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;margin-bottom:1.25rem;background:rgba(108,92,231,.12)}
+.feature-card h3{font-size:1.15rem;font-weight:700;margin-bottom:.5rem}
+.feature-card p{color:var(--text2);font-size:.9rem;line-height:1.65}
+
+/* ── Stats ── */
+.stats{padding:5rem 2rem;text-align:center}
+.stats-grid{display:flex;justify-content:center;gap:4rem;flex-wrap:wrap;max-width:900px;margin:0 auto}
+.stat{text-align:center}
+.stat-num{font-size:clamp(2rem,5vw,3.2rem);font-weight:900;background:linear-gradient(135deg,var(--accent),var(--accent3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.stat-label{color:var(--text2);font-size:.9rem;margin-top:.25rem}
+
+/* ── CTA ── */
+.cta{padding:6rem 2rem;text-align:center}
+.cta-box{max-width:700px;margin:0 auto;background:linear-gradient(145deg,rgba(108,92,231,.1),rgba(0,206,201,.05));border:1px solid rgba(108,92,231,.2);border-radius:28px;padding:4rem 3rem;position:relative;overflow:hidden}
+.cta-box::before{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(circle at 30% 40%,rgba(108,92,231,.08),transparent 50%);pointer-events:none}
+.cta-box h2{font-size:clamp(1.6rem,3.5vw,2.4rem);font-weight:800;margin-bottom:1rem}
+.cta-box p{color:var(--text2);margin-bottom:2rem;font-size:1.05rem}
+
+/* ── Footer ── */
+footer{padding:2rem;text-align:center;color:var(--text2);font-size:.8rem;border-top:1px solid rgba(255,255,255,.05)}
+footer a{color:var(--accent2);text-decoration:none}
+
+/* ── Animations ── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+
+.reveal{opacity:0;transform:translateY(40px);transition:all .7s cubic-bezier(.4,0,.2,1)}
+.reveal.visible{opacity:1;transform:translateY(0)}
+
+/* ── Glow orbs ── */
+.glow-orb{position:fixed;border-radius:50%;filter:blur(120px);opacity:.12;pointer-events:none;z-index:0}
+.glow-orb-1{width:600px;height:600px;background:var(--accent);top:-200px;right:-200px;animation:float1 20s infinite ease-in-out}
+.glow-orb-2{width:500px;height:500px;background:var(--accent3);bottom:-150px;left:-150px;animation:float2 25s infinite ease-in-out}
+.glow-orb-3{width:400px;height:400px;background:var(--accent4);top:50%;left:50%;transform:translate(-50%,-50%);animation:float3 18s infinite ease-in-out}
+@keyframes float1{0%,100%{transform:translate(0,0)}50%{transform:translate(-60px,80px)}}
+@keyframes float2{0%,100%{transform:translate(0,0)}50%{transform:translate(70px,-60px)}}
+@keyframes float3{0%,100%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.2)}}
+</style>
+</head>
+<body>
+
+<!-- Glow orbs (parallax BG) -->
+<div class="glow-orb glow-orb-1" data-speed="0.03"></div>
+<div class="glow-orb glow-orb-2" data-speed="0.05"></div>
+<div class="glow-orb glow-orb-3" data-speed="0.02"></div>
+
+<!-- Particle canvas -->
+<canvas id="particles"></canvas>
+
+<!-- ═══════════ HERO ═══════════ -->
+<section class="hero">
+  <div class="hero-badge"><span class="dot"></span> Open Source &middot; Free for everyone</div>
+  <h1>Steam Stream<br><span class="gradient">Donate Bot</span></h1>
+  <p>Automatický bot pro příjem CS2 skinů během streamu. Okamžité notifikace, historie darů, žebříčky a plná kontrola přes webovou administraci.</p>
+  <div class="hero-buttons">
+    <a href="/admin" class="btn btn-primary">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Otevřít Administraci
+    </a>
+    <a href="#features" class="btn btn-outline">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      Zjistit více
+    </a>
+  </div>
+  <div class="scroll-hint">
+    <div class="mouse"></div>
+    scrolluj dolů
+  </div>
+</section>
+
+<!-- ═══════════ FEATURES ═══════════ -->
+<section class="features" id="features">
+  <div class="features-title reveal">
+    <h2>Vše co potřebuješ</h2>
+    <p>Od automatických notifikací po kompletní správu účtů – vše na jednom místě.</p>
+  </div>
+  <div class="features-grid">
+    <div class="feature-card reveal">
+      <div class="feature-icon">🔔</div>
+      <h3>Živé Notifikace</h3>
+      <p>Okamžité overlay upozornění přímo v OBS. Dárce, položky a hodnota se zobrazí během vteřiny.</p>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">📊</div>
+      <h3>Statistiky & Grafy</h3>
+      <p>Sleduj kolik jsi dostal, od koho, a jak se tvůj stream vyvíjí v přehledných grafech.</p>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">🏆</div>
+      <h3>Žebříčky Dárců</h3>
+      <p>Automatický leaderboard top dárců. Motivuj diváky k větší podpoře během streamu.</p>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">🤖</div>
+      <h3>Multi-Account</h3>
+      <p>Spravuj více Steam účtů z jednoho místa. Vše s plnou 2FA podporou a auto-confirmem.</p>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">🎨</div>
+      <h3>Vlastní Design</h3>
+      <p>Přizpůsob barvy, zvuky a animace notifikací přesně tvému stream stylu.</p>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">💰</div>
+      <h3>Cíl Darů</h3>
+      <p>Nastav cílovou částku a sleduj progress bar přímo v overlayi. Motivuj komunitu!</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ STATS ═══════════ -->
+<section class="stats">
+  <div class="stats-grid reveal">
+    <div class="stat"><div class="stat-num">100%</div><div class="stat-label">Open Source</div></div>
+    <div class="stat"><div class="stat-num">0 Kč</div><div class="stat-label">Žádné poplatky</div></div>
+    <div class="stat"><div class="stat-num">5 min</div><div class="stat-label">Nastavení</div></div>
+    <div class="stat"><div class="stat-num">∞</div><div class="stat-label">DARŮ</div></div>
+  </div>
+</section>
+
+<!-- ═══════════ CTA ═══════════ -->
+<section class="cta">
+  <div class="cta-box reveal">
+    <h2>Připraveno startovat?</h2>
+    <p>Nastav bota, připoj Discord webhook a pusť stream. O vše ostatní se postará bot.</p>
+    <a href="/admin" class="btn btn-primary">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      Spustit Administraci
+    </a>
+  </div>
+</section>
+
+<footer>
+  Steam Stream Donate Bot &middot; open-source na <a href="https://github.com" target="_blank">GitHubu</a>
+</footer>
+
+<script>
+/* ── Particle system ── */
+(function(){
+  const c=document.getElementById('particles'),ctx=c.getContext('2d');
+  let w,h,particles=[];
+  function resize(){w=c.width=innerWidth;h=c.height=innerHeight}
+  resize();window.addEventListener('resize',resize);
+
+  class P{
+    constructor(){this.reset()}
+    reset(){
+      this.x=Math.random()*w;this.y=Math.random()*h;
+      this.vx=(Math.random()-.5)*.3;this.vy=(Math.random()-.5)*.3;
+      this.r=Math.random()*2+.5;this.a=Math.random()*.4+.1;
+    }
+    update(){
+      this.x+=this.vx;this.y+=this.vy;
+      if(this.x<0||this.x>w||this.y<0||this.y>h)this.reset();
+    }
+    draw(){
+      ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(108,92,231,${this.a})`;ctx.fill();
+    }
+  }
+  for(let i=0;i<80;i++)particles.push(new P());
+
+  function loop(){
+    ctx.clearRect(0,0,w,h);
+    particles.forEach(p=>{p.update();p.draw()});
+    // draw connections
+    for(let i=0;i<particles.length;i++){
+      for(let j=i+1;j<particles.length;j++){
+        const dx=particles[i].x-particles[j].x,dy=particles[i].y-particles[j].y;
+        const d=Math.sqrt(dx*dx+dy*dy);
+        if(d<140){
+          ctx.beginPath();ctx.moveTo(particles[i].x,particles[i].y);
+          ctx.lineTo(particles[j].x,particles[j].y);
+          ctx.strokeStyle=`rgba(108,92,231,${.08*(1-d/140)})`;
+          ctx.lineWidth=.5;ctx.stroke();
+        }
+      }
+    }
+    requestAnimationFrame(loop);
+  }
+  loop();
+})();
+
+/* ── Parallax on mouse ── */
+(function(){
+  const orbs=document.querySelectorAll('.glow-orb');
+  let mx=0,my=0,cx=0,cy=0;
+  document.addEventListener('mousemove',e=>{mx=e.clientX;cy=e.clientY;mx=e.clientX;my=e.clientY});
+  (function animate(){
+    cx+=(mx-cx)*.04;cy+=(my-cy)*.04;
+    orbs.forEach((o,i)=>{
+      const speed=parseFloat(o.dataset.speed)||.03;
+      const x=(cx-innerWidth/2)*speed*10;
+      const y=(cy-innerHeight/2)*speed*10;
+      o.style.transform=`translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+    });
+    requestAnimationFrame(animate);
+  })();
+})();
+
+/* ── Scroll reveal ── */
+(function(){
+  const els=document.querySelectorAll('.reveal');
+  const obs=new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');obs.unobserve(e.target)}});
+  },{threshold:.15});
+  els.forEach(e=>obs.observe(e));
+})();
+
+/* ── Parallax scroll for orbs ── */
+(function(){
+  const orbs=document.querySelectorAll('.glow-orb');
+  window.addEventListener('scroll',()=>{
+    const s=window.scrollY;
+    orbs.forEach((o,i)=>{
+      const speed=[.08,.12,.06][i]||.1;
+      o.style.marginTop=s*speed+'px';
+    });
+  });
+})();
+</script>
+</body>
+</html>
