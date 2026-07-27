@@ -40,7 +40,7 @@ section{position:relative;z-index:1}
 
 /* ── Buttons ── */
 .btn{display:inline-flex;align-items:center;gap:.6rem;padding:.85rem 2rem;border-radius:14px;font-size:1rem;font-weight:600;text-decoration:none;transition:all .3s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden;cursor:pointer;border:none}
-.btn::before{content:'';position:absolute;inset:0;border-radius:14px;opacity:0;transition:opacity .3s}
+.btn::before{content:'';position:absolute;inset:0;border-radius:14px;opacity:0;transition:opacity .3s;z-index:-1}
 .btn:hover::before{opacity:1}
 .btn-primary{background:linear-gradient(135deg,var(--accent),#7c3aed);color:#fff;box-shadow:0 4px 25px var(--glow)}
 .btn-primary::before{background:linear-gradient(135deg,#7c3aed,var(--accent))}
